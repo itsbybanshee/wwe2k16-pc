@@ -54,5 +54,7 @@ Online features of the original game are not available. This is an early release
 - **ReXGlue SDK** by Tom Clay (BSD 3-Clause)
 - The libraries listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); the SDK patches are under the SDK's licence ([patches/sdk/LICENSE](patches/sdk/LICENSE))
 - **Banshee** ([@itsbybanshee](https://x.com/itsbybanshee)): WWE 2K16 PC port and launcher
+- [MrBurn](https://github.com/iMrBurn) for help with texture rendering issues
+- [Bryan Caminos](https://github.com/BryanCaminos) for troubleshooting & testing
 
 Fan project, not affiliated with WWE, 2K or Yuke's.

@@ -16,7 +16,6 @@ set(WWE2K16_SOURCES
     src/resolve_coherency.cpp
     src/frame_rate.cpp
     src/launcher_settings.cpp
-    src/display_mode.cpp
     src/screenshot.cpp
     src/achievement_toast.cpp
     src/achievement_sound.cpp

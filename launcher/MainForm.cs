@@ -34,16 +34,22 @@ public sealed class MainForm : Form
         Text = "WWE 2K16 Launcher";
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);   // res\wwe2k16.ico, embedded at build time
         BackColor = Color.FromArgb(7, 11, 18);
-        int targetWidth = 1120;
-        int targetHeight = 790;
         var workArea = Screen.PrimaryScreen?.WorkingArea ?? SystemInformation.WorkingArea;
-        if (targetHeight > workArea.Height - 30)
-            targetHeight = Math.Max(680, workArea.Height - 30);
-        if (targetWidth > workArea.Width - 30)
-            targetWidth = Math.Max(960, workArea.Width - 30);
+        // Match the intended centered window size at 1920x1080 (including the taskbar work area),
+        // then keep the same proportions on smaller and larger displays.
+        const int referenceWidth = 1920;
+        const int referenceWorkHeight = 1040;
+        const int preferredWidth = 1151;
+        const int preferredHeight = 767;
+        double scale = Math.Min(workArea.Width / (double)referenceWidth,
+                                workArea.Height / (double)referenceWorkHeight);
+        scale = Math.Max(0.1, scale);
+        int targetWidth = Math.Max(480, (int)Math.Round(preferredWidth * scale));
+        int targetHeight = Math.Max(360, (int)Math.Round(preferredHeight * scale));
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(targetWidth, targetHeight);
-        MinimumSize = new Size(960, 680);
+        // Allow the window to fit smaller displays and secondary monitors; the page reflows and scrolls below.
+        MinimumSize = new Size(480, 320);
         Opacity = 0;
         Controls.Add(_web);
 
@@ -186,7 +192,6 @@ public sealed class MainForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         base.OnFormClosing(e);
-        DisplayHelper.RestoreOriginal();
         _web.Dispose();
     }
 
@@ -492,8 +497,7 @@ public sealed class MainForm : Form
         Directory.CreateDirectory(Path.Combine(_paths.UserData, "music"));
         info.ArgumentList.Add($"--xmp_music_dir={Path.Combine(_paths.UserData, "music")}");
         info.Environment["WWE2K16_VSYNC"] = _settings.Vsync ? "1" : "0";
-        // Entrances / victory motions stay at the console's 30 FPS: WWE 2K16 plays them in slow motion at 60.
-        info.Environment["WWE2K16_KEEP_60"] = "0";
+        info.Environment["WWE2K16_KEEP_60"] = _settings.Keep60 ? "1" : "0";
         info.Environment["WWE2K16_SHADOWS"] = _settings.Shadows ? "1" : "0";
         info.Environment["WWE2K16_FPS_COUNTER"] = _settings.FpsCounter ? "1" : "0";
         info.Environment["WWE2K16_WINDOW_MODE"] = _settings.WindowMode;
@@ -557,7 +561,6 @@ public sealed class MainForm : Form
             _mods.CleanupStaged();
             return;
         }
-        DisplayHelper.SwitchTo60Hz();
         _game.EnableRaisingEvents = true;
         _game.Exited += (_, _) => OnGameExited();
         _gamePollTimer.Start();
@@ -604,7 +607,6 @@ public sealed class MainForm : Form
         try { code = _game.ExitCode; } catch { }
         _game = null;
         _mods.CleanupStaged();
-        DisplayHelper.RestoreOriginal();
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         Activate();
         Post(new { type = "gameRunning", running = false });

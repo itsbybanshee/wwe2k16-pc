@@ -13,7 +13,7 @@
 //   sub_82C2C3F0    D3D GPU interrupt handler (source, device)
 //
 // Environment switches (default first):
-//   WWE2K16_KEEP_60=0|1     console 30 FPS in entrances etc. (default) | keep 60 FPS (slow motion in WWE 2K16)
+//   WWE2K16_KEEP_60=0|1     console 30 FPS in entrances etc. | keep 60 FPS (default)
 //   WWE2K16_LATE_FLIP=1|0   a late frame flips at once | waits for the next vblank (console behaviour)
 
 #include <chrono>
@@ -65,11 +65,7 @@ bool EnvDefaultOn(const char* name) {
 }
 
 bool Keep60() {
-  // Off by default for WWE 2K16: its entrances play in slow motion at 60 FPS.
-  static const bool enabled = [] {
-    const char* v = std::getenv("WWE2K16_KEEP_60");
-    return v && v[0] == '1';
-  }();
+  static const bool enabled = EnvDefaultOn("WWE2K16_KEEP_60");
   return enabled;
 }
 

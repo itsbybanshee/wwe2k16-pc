@@ -8,8 +8,8 @@ index 8572045..2f9075b 100644
  
 -REXCVAR_DEFINE_STRING(keybind_a, "Space", "Input/Keybinds/Controller", "A button");
 -REXCVAR_DEFINE_STRING(keybind_b, "Backspace", "Input/Keybinds/Controller", "B button");
-+REXCVAR_DEFINE_STRING(keybind_a, "L", "Input/Keybinds/Controller", "A button");
-+REXCVAR_DEFINE_STRING(keybind_b, "K", "Input/Keybinds/Controller", "B button");
++REXCVAR_DEFINE_STRING(keybind_a, "L,Return", "Input/Keybinds/Controller", "A button");
++REXCVAR_DEFINE_STRING(keybind_b, "K,Escape", "Input/Keybinds/Controller", "B button");
  REXCVAR_DEFINE_STRING(keybind_x, "J", "Input/Keybinds/Controller", "X button");
 -REXCVAR_DEFINE_STRING(keybind_y, "I", "Input/Keybinds/Controller", "Y button");
 +REXCVAR_DEFINE_STRING(keybind_y, "Space", "Input/Keybinds/Controller", "Y button");
@@ -45,7 +45,7 @@ index 8572045..2f9075b 100644
 +REXCVAR_DEFINE_STRING(keybind_dpad_right, "Right,4", "Input/Keybinds/Controller", "D-pad right");
  REXCVAR_DEFINE_STRING(keybind_back, "Tab", "Input/Keybinds/Controller", "Back button");
 -REXCVAR_DEFINE_STRING(keybind_start, "Return", "Input/Keybinds/Controller", "Start button");
-+REXCVAR_DEFINE_STRING(keybind_start, "Escape", "Input/Keybinds/Controller", "Start button");
++REXCVAR_DEFINE_STRING(keybind_start, "Return", "Input/Keybinds/Controller", "Start button");
  REXCVAR_DEFINE_STRING(keybind_guide, "", "Input/Keybinds/Controller", "Guide button");
  
  namespace rex::input::mnk {
@@ -315,3 +315,17 @@ index 844612b..ff3174f 100644
  
    return result;
  }
+@@ -563,3 +563,6 @@ void MnkInputDriver::OnKeyDown(rex::ui::KeyEvent& e) {
+       if (pad_vk != VirtualKey::kNone) {
+         EnqueueKeystroke(static_cast<uint16_t>(pad_vk), true, 0, e.prev_state());
+       }
++      if (vk == static_cast<uint16_t>(VirtualKey::kReturn)) {
++        EnqueueKeystroke(static_cast<uint16_t>(VirtualKey::kXInputPadA), true, 0, e.prev_state());
++      }
+@@ -630,3 +633,6 @@ void MnkInputDriver::OnKeyUp(rex::ui::KeyEvent& e) {
+   if (pad_vk != VirtualKey::kNone) {
+     EnqueueKeystroke(static_cast<uint16_t>(pad_vk), false);
+   }
++  if (vk == static_cast<uint16_t>(VirtualKey::kReturn)) {
++    EnqueueKeystroke(static_cast<uint16_t>(VirtualKey::kXInputPadA), false);
++  }

@@ -8,6 +8,7 @@ public sealed class LauncherSettings
     // "720" (native Xbox 360), "1080", "1440", "2160" (4K)
     public string Resolution { get; set; } = "1080";
     public bool Vsync { get; set; } = true;
+    public bool Keep60 { get; set; } = true;
     public string WindowMode { get; set; } = "borderless";
     public bool Fullscreen { get; set; } = false;
     public bool LowLatency { get; set; } = true;

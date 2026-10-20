@@ -134,13 +134,11 @@ void ApplyLauncherSettings(rex::PathConfig& paths, bool started_by_launcher) {
   const fs::path root = FindRoot();
   const fs::path user_data = root / "userdata";
   std::error_code ec;
-  if (!rex::cvar::HasNonDefaultValue("user_data_root") && fs::is_directory(user_data, ec)) {
+  fs::create_directories(user_data, ec);
+  if (!rex::cvar::HasNonDefaultValue("user_data_root")) {
     paths.user_data_root = user_data;
   }
   const auto s = ReadSettings(user_data / "launcher.json");
-  if (s.empty()) {
-    return;
-  }
   auto flag = [&](const char* name, bool fallback) {
     auto it = s.find(name);
     return it == s.end() ? fallback : it->second == "true";
@@ -170,13 +168,16 @@ void ApplyLauncherSettings(rex::PathConfig& paths, bool started_by_launcher) {
   // Game folder.
   if (auto it = s.find("GameFolder"); it != s.end() && !it->second.empty()) {
     const fs::path game = rex::to_path(it->second);
-    if (fs::exists(game / "default.xex", ec)) {
+    std::string extension = game.extension().string();
+    for (char& c : extension) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (fs::exists(game / "default.xex", ec) ||
+        (extension == ".iso" && fs::is_regular_file(game, ec))) {
       paths.game_data_root = game;
     }
   }
 
   // Display: same mapping as the launcher (LauncherSettings.Display): render scale on top of 1280x720.
-  const std::string resolution = s.count("Resolution") ? s.at("Resolution") : "720";
+  const std::string resolution = s.count("Resolution") ? s.at("Resolution") : "1080";
   int scale = 1, width = 1280, height = 720;
   if (resolution == "1080") {
     scale = 2, width = 1920, height = 1080;
@@ -260,8 +261,8 @@ void ApplyLauncherSettings(rex::PathConfig& paths, bool started_by_launcher) {
   SetIfDefault("swap_post_effect", aaVal);
   SetEnvStrIfUnset("WWE2K16_AA", aaVal);
 
-  if (auto it = s.find("Language"); it != s.end() && !it->second.empty()) {
-    std::string lang = it->second;
+  {
+    std::string lang = s.count("Language") && !s.at("Language").empty() ? s.at("Language") : "english";
     for (char& c : lang) {
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }

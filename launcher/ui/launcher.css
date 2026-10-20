@@ -1224,8 +1224,9 @@ body::before {
 
 /* Left panel: everything fits comfortably without scrolling */
 .launcher-layout > .glass-panel:first-child {
-    gap: 10px;
-    padding: 18px 22px;
+    gap: 6px;
+    --settings-panel-block-padding: 16px;
+    padding: var(--settings-panel-block-padding) 22px;
     overflow: hidden !important;
     scrollbar-width: none !important;
 }
@@ -1237,11 +1238,124 @@ body::before {
 }
 
 .launcher-layout > .glass-panel:first-child .section-rule {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
+}
+
+.launcher-layout > .glass-panel:first-child > .panel-section {
+    flex: none;
+}
+
+#language-group {
+    min-height: 40px;
+    flex: none;
+}
+
+/* Keep compact displays usable: the form shrinks to the monitor, while the page scrolls instead of
+   clipping settings or the footer. The language row keeps the same bottom inset as the Game files top inset. */
+@media (max-width: 960px) {
+    html,
+    body {
+        height: auto;
+        min-height: 100%;
+    }
+
+    body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .launcher-shell {
+        height: auto;
+        min-height: 100vh;
+        gap: 16px;
+        padding: 18px 18px 16px;
+    }
+
+    .launcher-header {
+        align-items: center;
+    }
+
+    .launcher-title h1 {
+        font-size: clamp(28px, 5vw, 40px);
+    }
+
+    .launcher-layout {
+        min-height: 0;
+        flex: none;
+        grid-template-columns: minmax(0, 1fr);
+        overflow: visible;
+    }
+
+    .glass-panel {
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .launcher-layout > .glass-panel:first-child {
+        --settings-panel-block-padding: 16px;
+        gap: 10px;
+        padding: var(--settings-panel-block-padding) 16px;
+        overflow: visible !important;
+    }
+
+    .dlc-panel {
+        height: min(640px, max(440px, 70vh));
+        min-height: 440px;
+        overflow: hidden;
+    }
+
+    .launcher-footer,
+    .footer-links {
+        flex-wrap: wrap;
+    }
+
+    .play-button {
+        min-width: min(220px, 100%);
+    }
+}
+
+/* Preserve the two-column layout on wide, short displays and let the window scroll vertically. */
+@media (max-height: 740px) and (min-width: 961px) {
+    html,
+    body {
+        height: auto;
+        min-height: 100%;
+    }
+
+    body {
+        overflow-y: auto;
+    }
+
+    .launcher-shell {
+        height: auto;
+        min-height: 100vh;
+        padding-block: 18px;
+        gap: 14px;
+    }
+
+    .launcher-layout {
+        min-height: 0;
+        flex: none;
+        align-items: start;
+    }
+
+    .launcher-layout > .glass-panel:first-child {
+        min-height: max-content;
+        overflow: visible !important;
+    }
+
+    .dlc-panel {
+        height: 560px;
+        min-height: 560px;
+    }
 }
 
 .settings-list {
-    gap: 8px;
+    gap: 4px;
+}
+
+.setting-row {
+    min-height: 22px;
 }
 
 .field-hint {

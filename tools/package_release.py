@@ -187,7 +187,7 @@ folder).
  - AMD FidelityFX Super Resolution (FSR) with edge-preserving sharpening
    (RCAS) for high framerates at high resolutions
  - Enhanced NVIDIA FXAA 3.11 Quality Anti-Aliasing (FXAA & Max)
- - Steady 60 FPS gameplay with authentic console-rate cinematics
+ - Steady 60 FPS gameplay with 60 FPS entrances and victory motions (toggle in Settings)
  - Windowed, borderless or fullscreen
  - Anisotropic texture filtering (4x, 16x), shadows and an FPS counter
  - Clean main menu with direct Exit option and prompt

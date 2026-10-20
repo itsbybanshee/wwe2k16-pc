@@ -10,7 +10,7 @@ WWE 2K16 PC recompilation with a modern launcher, graphics options, non-destruct
 - **Resolution**: 720p, 1080p, 1440p or 4K
 - **AMD FSR**
 - **NVIDIA FXAA 3.11 Quality** anti-aliasing (FXAA / Max)
-- **Smooth 60 FPS gameplay** with 30 FPS console-rate cinematics
+- **Smooth 60 FPS gameplay** with 60 FPS entrances and victory motions (toggle in Settings)
 - **Keyboard gameplay** with a modern WWE 2K-style layout
 - **Button mapper** for controller and keyboard, with export / import of control schemes
 - **Languages**: English, French, German, Italian or Spanish (game text and launcher)

@@ -26,7 +26,6 @@
 #include "achievement_sound.h"
 #include "achievement_toast.h"
 #include "disc_image.h"
-#include "display_mode.h"
 #include "fps_overlay.h"
 #include "launcher_settings.h"
 #include "screenshot.h"
@@ -238,9 +237,6 @@ class Wwe2k16App : public rex::ReXApp {
 #if defined(_WIN32)
     SetupWindowMode();
 #endif
-    // Fullscreen on a 75 / 144 / 165 Hz display: switch it to 60 Hz while fullscreen (display_mode.cpp). Here, not in
-    // OnPostSetup: the window is created after OnPostSetup.
-    display_mode_.Attach(window());
     fps_overlay_.Attach(drawer);
     achievement_toasts_.Attach(&app_context(), drawer);
     achievement_toasts_.SetSound(
@@ -261,7 +257,6 @@ class Wwe2k16App : public rex::ReXApp {
   void OnShutdown() override {
     rex::ui::UnregisterBind("bind_toggle_fullscreen");
     rex::ui::UnregisterBind("bind_screenshot");
-    display_mode_.Detach();
     fps_overlay_.Detach();
     rex::system::xam::SetAchievementUnlockedHandler(nullptr);
     achievement_toasts_.Detach();
@@ -275,7 +270,6 @@ class Wwe2k16App : public rex::ReXApp {
 
  private:
   wwe2k16::AchievementToasts achievement_toasts_;
-  wwe2k16::DisplayMode60 display_mode_;
   wwe2k16::FpsOverlay fps_overlay_;
 
 #if defined(_WIN32)

@@ -15,6 +15,7 @@ const elements = {
     gameStatus: document.getElementById('game-folder-status'),
     resolutionButtons: [...document.querySelectorAll('[data-resolution]')],
     vsync: document.getElementById('vsync'),
+    keep60: document.getElementById('keep60'),
     windowModeButtons: [...document.querySelectorAll('[data-window-mode]')],
     shadows: document.getElementById('shadows'),
     fpsCounter: document.getElementById('fps-counter'),
@@ -188,9 +189,9 @@ const PAD_LABELS = {
 };
 // SDK defaults (sdk patch 0005); the launcher only stores what differs.
 const KEY_DEFAULTS = [
-    ['a', 'A', 'L'], ['b', 'B', 'K'], ['x', 'X', 'J'],
+    ['a', 'A', 'L,Return'], ['b', 'B', 'K,Escape'], ['x', 'X', 'J'],
     ['y', 'Y', 'Space'], ['left_shoulder', 'LB', 'O'], ['right_shoulder', 'RB', 'U'],
-    ['left_trigger', 'LT', 'Shift'], ['right_trigger', 'RT', 'I'], ['start', 'Start', 'Escape'],
+    ['left_trigger', 'LT', 'Shift'], ['right_trigger', 'RT', 'I'], ['start', 'Start', 'Return'],
     ['back', 'Back', 'Tab'], ['lstick_up', 'Left stick up', 'W'], ['lstick_down', 'Left stick down', 'S'],
     ['lstick_left', 'Left stick left', 'A'], ['lstick_right', 'Left stick right', 'D'],
     ['lstick_press', 'L3', 'C'], ['rstick_up', 'Right stick up', 'Numpad8,T'],
@@ -466,10 +467,11 @@ function renderAchievements(data) {
 let settings = {
     resolution: '1080',
     vsync: true,
+    keep60: true,
     windowMode: 'borderless',
     fullscreen: false,
     shadows: true,
-    fpsCounter: true,
+    fpsCounter: false,
     anisotropic: '16x',
     language: 'english',
     antiAliasing: 'fxaa',
@@ -506,6 +508,7 @@ function renderSettings() {
         elements.resolutionHint.textContent = resolutionHints[settings.resolution] || '';
     }
     if (elements.vsync) elements.vsync.checked = settings.vsync;
+    if (elements.keep60) elements.keep60.checked = settings.keep60 !== false;
     if (elements.shadows) elements.shadows.checked = settings.shadows !== false;
     if (elements.fpsCounter) elements.fpsCounter.checked = Boolean(settings.fpsCounter);
 
@@ -740,7 +743,7 @@ document.getElementById('resolution-group').addEventListener('keydown', event =>
     next.focus();
 });
 
-[['vsync', elements.vsync], ['shadows', elements.shadows], ['fpsCounter', elements.fpsCounter]].forEach(([key, input]) => {
+[['vsync', elements.vsync], ['keep60', elements.keep60], ['shadows', elements.shadows], ['fpsCounter', elements.fpsCounter]].forEach(([key, input]) => {
     if (input) {
         input.addEventListener('change', () => {
             settings[key] = input.checked;

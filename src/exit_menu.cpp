@@ -1,7 +1,7 @@
 // wwe2k16 - Main Menu EXIT option, menu layout reordering, system string branding, and quit confirmation prompt.
 //
 // Changes made:
-//   1. Main Menu Layout (replace WWE Shop with Exit at bottom, suppress Xbox Live item):
+//   1. Main Menu Layout (suppress Xbox Live, put Options above Exit):
 //      - The original Xbox 360 Main Menu order:
 //          PLAY
 //          2K SHOWCASE
@@ -9,15 +9,15 @@
 //          WWE CREATIONS
 //          WWE ONLINE / Xbox Live  <--- REMOVED COMPLETELY (suppressed via GetMenuItemDesc & CheckMenuItemVisible)
 //          MY WWE
-//          WWE OPTIONS
 //          WWE SHOP                <--- REPLACED WITH "EXIT" (string 35178 patched in-place to "EXIT")
+//          WWE OPTIONS
 //      - We hook `GetMenuItemDesc` (`sub_8281B388` in TU3 / `sub_82816938` in Vanilla):
 //          * When queried for string `35243` ("Xbox Live" / WWE Online), it returns the menu object's invalid
 //            sentinel descriptor (`menu_obj + 11472`), which causes the entire menu system (visible item collector,
 //            slot layout, cursor navigation, and rendering) to treat the entry as completely non-existent.
 //      - We also hook `CheckMenuItemVisible` (`sub_8281C6B0` in TU3 / `sub_82817C60` in Vanilla):
 //          * Returns -1 for string `35243` to ensure it is never collected into visible items.
-//          * Forces string `35178` ("WWE SHOP" -> "EXIT") visible at the bottom of the Main Menu.
+//          * Swaps the WWE Shop and WWE Options descriptors so EXIT is the final Main Menu item.
 //      - Only string `35178` ("WWE SHOP") in `pac\string.pac` is patched in-place to "EXIT" across all languages.
 //        String `35243` is left untouched so no duplicate "EXIT" string exists.
 //      - In `SetupMenuSlot` (`sub_8281F718` in TU3 / `sub_8281ACC8` in Vanilla), brightness is forced to 1.0f (white).
@@ -70,8 +70,11 @@
 #define WWE2K16_IMP_SetupMenuSlot __imp__sub_8281F718
 #define WWE2K16_FN_ConfirmCheckAndPopup sub_8281D090
 #define WWE2K16_IMP_ConfirmCheckAndPopup __imp__sub_8281D090
+#define WWE2K16_FN_ResolveMenuAction sub_8281CE98
+#define WWE2K16_IMP_ResolveMenuAction __imp__sub_8281CE98
 #define WWE2K16_FN_InitDialogReq sub_828F3568
 #define WWE2K16_FN_ShowDialog sub_828F3DA0
+#define WWE2K16_IMP_ShowDialog __imp__sub_828F3DA0
 #define WWE2K16_FN_EnsureDialogManager sub_828F5A38
 #define WWE2K16_FN_PollDialogResult sub_828F4EF8
 #define WWE2K16_FN_DialogUpdate sub_828F4FE0
@@ -91,8 +94,11 @@
 #define WWE2K16_IMP_SetupMenuSlot __imp__sub_8281ACC8
 #define WWE2K16_FN_ConfirmCheckAndPopup sub_82818640
 #define WWE2K16_IMP_ConfirmCheckAndPopup __imp__sub_82818640
+#define WWE2K16_FN_ResolveMenuAction sub_82818448
+#define WWE2K16_IMP_ResolveMenuAction __imp__sub_82818448
 #define WWE2K16_FN_InitDialogReq sub_828EDF38
 #define WWE2K16_FN_ShowDialog sub_828EE7A0
+#define WWE2K16_IMP_ShowDialog __imp__sub_828EE7A0
 #define WWE2K16_FN_EnsureDialogManager sub_828F0438
 #define WWE2K16_FN_PollDialogResult sub_828EF8F8
 #define WWE2K16_FN_DialogUpdate sub_828EF9E0
@@ -106,6 +112,7 @@
 extern "C" PPC_FUNC(WWE2K16_IMP_GetMenuItemDesc);
 extern "C" PPC_FUNC(WWE2K16_FN_InitDialogReq);
 extern "C" PPC_FUNC(WWE2K16_FN_ShowDialog);
+extern "C" PPC_FUNC(WWE2K16_IMP_ShowDialog);
 extern "C" PPC_FUNC(WWE2K16_FN_EnsureDialogManager);
 extern "C" PPC_FUNC(WWE2K16_FN_PollDialogResult);
 extern "C" PPC_FUNC(WWE2K16_FN_GetDialogResult);
@@ -115,10 +122,12 @@ namespace {
 
 constexpr uint32_t kMainMenuXboxLiveStringId = 35243;  // "WWE Online / Xbox Live" on the top-level Main Menu, now eliminated
 constexpr uint32_t kWweShopStringId = 35178;           // "WWE SHOP" at the bottom of Main Menu, now "EXIT"
+constexpr uint32_t kXboxLiveOfflineNoticeStringId = 30041;  // localized offline notice; ID is shared across languages
 constexpr uint32_t kFloatOneBits = 0x3F800000u;        // 1.0f in IEEE-754 big-endian / host register form
 constexpr char kExitConfirmationPrompt[] = "Are you sure you want to quit the game?";
 
 std::atomic<bool> g_exit_dialog_pending{false};
+std::atomic<uint32_t> g_xbox_live_alert_string_id{0};
 
 struct SubstringReplacement {
   std::string_view from;
@@ -181,9 +190,15 @@ bool ReplaceSystemNamesInPlace(uint8_t* slot, uint32_t capacity, uint32_t& out_l
   return modified;
 }
 
-// Queries `WWE2K16_IMP_GetMenuItemDesc(menu_obj, group_id, item_id)` without disturbing the caller's PPCContext
-// and returns the item's raw String ID (+24), or 0 if the descriptor is the invalid sentinel.
-uint32_t GetMenuItemStringId(PPCContext& ctx, uint8_t* base, uint32_t menu_obj, uint32_t group_id, uint32_t item_id) {
+bool IsXboxLiveOfflineMessage(const uint8_t* text, uint32_t length) {
+  if (length && text[length - 1] == 0) --length;
+  const std::string_view value(reinterpret_cast<const char*>(text), length);
+  return value.find("not connected to Xbox Live") != std::string_view::npos ||
+         value.find("related features won't be available") != std::string_view::npos;
+}
+
+uint32_t RawMenuItemDesc(PPCContext& ctx, uint8_t* base, uint32_t menu_obj, uint32_t group_id,
+                         uint32_t item_id) {
   const PPCContext saved = ctx;
   ctx.r3.u64 = menu_obj;
   ctx.r4.s64 = int32_t(group_id);
@@ -191,10 +206,56 @@ uint32_t GetMenuItemStringId(PPCContext& ctx, uint8_t* base, uint32_t menu_obj, 
   WWE2K16_IMP_GetMenuItemDesc(ctx, base);
   const uint32_t desc = ctx.r3.u32;
   ctx = saved;
-  if (!desc || PPC_LOAD_U32(desc) == 0xFFFFFFFFu) {
-    return 0;
-  }
+  return desc;
+}
+
+uint32_t RawMenuItemStringId(uint8_t* base, uint32_t desc) {
+  if (!desc || PPC_LOAD_U32(desc) == 0xFFFFFFFFu) return 0;
   return PPC_LOAD_U32(desc + 24);
+}
+
+// Move the adjacent descriptors by one row: WWE Shop's descriptor (renamed EXIT) goes last,
+// while the actual Options descriptor moves into the preceding row. The pair is identified by
+// the stable shop string ID and adjacency, so labels in each language need no special handling.
+uint32_t GetSwappedMenuItemDesc(PPCContext& ctx, uint8_t* base, uint32_t menu_obj, uint32_t group_id,
+                                uint32_t item_id) {
+  const uint32_t desc = RawMenuItemDesc(ctx, base, menu_obj, group_id, item_id);
+  const uint32_t string_id = RawMenuItemStringId(base, desc);
+
+  if (string_id == kWweShopStringId && item_id < 32) {
+    const uint32_t candidate = RawMenuItemDesc(ctx, base, menu_obj, group_id, item_id + 1);
+    const uint32_t candidate_id = RawMenuItemStringId(base, candidate);
+    if (candidate_id && candidate_id != kWweShopStringId && candidate_id != kMainMenuXboxLiveStringId) {
+      return candidate;
+    }
+  }
+  if (item_id > 0) {
+    const uint32_t candidate = RawMenuItemDesc(ctx, base, menu_obj, group_id, item_id - 1);
+    if (RawMenuItemStringId(base, candidate) == kWweShopStringId) return candidate;
+  }
+  return desc;
+}
+
+// Return the displayed (possibly swapped) entry's string ID without disturbing the caller context.
+uint32_t GetMenuItemStringId(PPCContext& ctx, uint8_t* base, uint32_t menu_obj, uint32_t group_id, uint32_t item_id) {
+  return RawMenuItemStringId(base, GetSwappedMenuItemDesc(ctx, base, menu_obj, group_id, item_id));
+}
+
+// The title resolves a row's action separately from the descriptor used to render it.
+// Keep the same adjacent swap in the action resolver so the displayed Options row invokes
+// the real Options entry, while the displayed Exit row remains bound to the shop slot's
+// replacement exit confirmation. The IDs are stable across localized string tables.
+uint32_t GetActionItemIndex(PPCContext& ctx, uint8_t* base, uint32_t menu_obj, uint32_t group_id,
+                            uint32_t item_id) {
+  if (group_id != 1) return item_id;
+  const uint32_t id = RawMenuItemStringId(base, RawMenuItemDesc(ctx, base, menu_obj, group_id, item_id));
+  if (id == kWweShopStringId && item_id < 32) return item_id + 1;
+  if (item_id > 0) {
+    const uint32_t previous = RawMenuItemStringId(
+        base, RawMenuItemDesc(ctx, base, menu_obj, group_id, item_id - 1));
+    if (previous == kWweShopStringId) return item_id - 1;
+  }
+  return item_id;
 }
 
 struct ExitDialogGuestStorage {
@@ -269,6 +330,11 @@ extern "C" PPC_FUNC(WWE2K16_FN_ZlibDecompress) {
       continue;
     }
 
+    if (IsXboxLiveOfflineMessage(p + offset, length)) {
+      uint32_t expected = 0;
+      g_xbox_live_alert_string_id.compare_exchange_strong(expected, id);
+    }
+
     // Only patch WWE SHOP (35178) to "EXIT". String 35243 (Xbox Live) is not patched so no middle "EXIT" string exists.
     if (id == kWweShopStringId && length >= 5) {
       std::memcpy(p + offset, "EXIT", 5);
@@ -293,21 +359,35 @@ extern "C" PPC_FUNC(WWE2K16_FN_ZlibDecompress) {
   }
 }
 
+// The retired Xbox Live services warning is a normal title dialog. Suppress only that
+// dialog by its localized message ID; leave save checks and other dialogs alone.
+extern "C" PPC_FUNC(WWE2K16_IMP_ShowDialog);
+extern "C" PPC_FUNC(WWE2K16_FN_ShowDialog) {
+  const uint32_t req_ea = ctx.r4.u32;
+  const uint32_t message_id = req_ea ? PPC_LOAD_U32(req_ea + 4) : 0;
+  if (message_id && (message_id == kXboxLiveOfflineNoticeStringId ||
+                     message_id == g_xbox_live_alert_string_id.load())) {
+    REXLOG_INFO("[wwe2k16-menu] suppressed retired Xbox Live offline notice (string {})", message_id);
+    ctx.r3.u64 = 0;
+    return;
+  }
+  WWE2K16_IMP_ShowDialog(ctx, base);
+}
+
 // --- 2. Menu descriptor hook: completely suppress Xbox Live / middle entry at descriptor lookup ---------------------
 
 extern "C" PPC_FUNC(WWE2K16_FN_GetMenuItemDesc) {
   const uint32_t menu_obj = ctx.r3.u32;
-  WWE2K16_IMP_GetMenuItemDesc(ctx, base);
-  const uint32_t desc = ctx.r3.u32;
-  if (desc && PPC_LOAD_U32(desc) != 0xFFFFFFFFu) {
-    const uint32_t str_id = PPC_LOAD_U32(desc + 24);
-    if (str_id == kMainMenuXboxLiveStringId) {
+  const uint32_t group_id = ctx.r4.u32;
+  const uint32_t item_id = ctx.r5.u32;
+  const uint32_t desc = GetSwappedMenuItemDesc(ctx, base, menu_obj, group_id, item_id);
+  if (RawMenuItemStringId(base, desc) == kMainMenuXboxLiveStringId) {
       // Suppress the old Xbox Live item: return the menu object's invalid sentinel descriptor (+11472).
       // This causes the entire menu engine to omit this slot completely (no button, no cursor stop, no gap).
       ctx.r3.u64 = menu_obj + 11472u;
       return;
-    }
   }
+  ctx.r3.u64 = desc;
 }
 
 // --- 3. Menu slot visibility hook: hide middle Xbox Live slot, force bottom EXIT visible ---------------------------
@@ -350,6 +430,21 @@ extern "C" PPC_FUNC(WWE2K16_FN_SetupMenuSlot) {
     const uint32_t col_base = menu_obj + (page * 9u + col_idx) * 588u + 856u;
     PPC_STORE_U32(col_base + (item_slot + 87u) * 4u, kFloatOneBits);
   }
+}
+
+// Resolve the real action attached to the displayed (reordered) main-menu row.
+extern "C" PPC_FUNC(WWE2K16_IMP_ResolveMenuAction);
+extern "C" PPC_FUNC(WWE2K16_FN_ResolveMenuAction) {
+  const uint32_t menu_obj = ctx.r3.u32;
+  const uint32_t group_id = ctx.r4.u32;
+  const uint32_t item_id = ctx.r5.u32;
+  const uint32_t action_item = GetActionItemIndex(ctx, base, menu_obj, group_id, item_id);
+  if (action_item != item_id) {
+    REXLOG_INFO("[wwe2k16-menu] resolve main-menu action group={} item={} as item={}",
+                group_id, item_id, action_item);
+  }
+  ctx.r5.u64 = action_item;
+  WWE2K16_IMP_ResolveMenuAction(ctx, base);
 }
 
 // --- 5. Confirm press handler (prompt "Are you sure you want to quit the game?" with Yes/No [A/B]) -------------------
@@ -407,7 +502,7 @@ extern "C" PPC_FUNC(WWE2K16_FN_ConfirmCheckAndPopup) {
     // 4. Open native modal dialog
     ctx.r3.u64 = dialog_mgr;
     ctx.r4.u64 = req_ea;
-    WWE2K16_FN_ShowDialog(ctx, base);
+    WWE2K16_IMP_ShowDialog(ctx, base);
 
     ctx = saved;
     g_exit_dialog_pending.store(true);
@@ -417,6 +512,9 @@ extern "C" PPC_FUNC(WWE2K16_FN_ConfirmCheckAndPopup) {
     return;
   }
 
+  // The preflight reads the raw descriptor internally, so translate the visible Options
+  // row to the original Options slot before letting the game's own handler process it.
+  ctx.r5.u64 = GetActionItemIndex(ctx, base, menu_obj, group_id, item_id);
   WWE2K16_IMP_ConfirmCheckAndPopup(ctx, base);
 }
 

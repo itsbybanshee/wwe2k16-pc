@@ -14,14 +14,14 @@ WWE 2K16 PC recompilation with a modern launcher, graphics options, non-destruct
 - **Native Main Menu EXIT option** with confirmation prompt & Xbox Live removal
 - **Keyboard gameplay** with a modern WWE 2K-style layout
 - **Button mapper** for controller and keyboard, with export / import of control schemes
-- **Languages**: English, French, German, Italian or Spanish (game text, official Xbox achievement translations, in-game toasts, and launcher)
+- **Languages**: English, French, German, Italian or Spanish (game text and launcher)
 - **Runs straight from your `.iso`**, or from an extracted game folder
 - **Non-destructive mod support** with automatic ARCH container catalog patching (`plist360.arc`) for character packages, loose PAC files, and arenas
 - **DLC support** (all 6 official DLC packages)
 - **Title update support**
 - **Achievements** with unlock notifications and progress tracker
 - **Custom soundtrack** in the game's menus and match entrances (MP3, WAV, FLAC, OGG)
-- **Screenshots** with F12
+- **Screenshots** with F12.
 
 ## Installation
 

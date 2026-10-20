@@ -1,0 +1,8 @@
+# Extra function entry points the recompiler misses in the title update build.
+
+[functions]
+
+# First TU codegen: UnresolvedCall targets reached only by a `b` tail call. Sizes left to the scanner.
+0x82CAB090 = { name = "wwe2k16tu_tail_82CAB090" }   # b from 0x82CAA994, 0x82CAB16C
+0x82754928 = { name = "wwe2k16tu_tail_82754928" }   # b from 0x8269AC6C
+0x82E8E33C = { name = "wwe2k16tu_tail_82E8E33C" }   # b from 0x82E8E378

@@ -1,0 +1,37 @@
+From d70263e9f835c766a464513b79a6cd455b949be2 Mon Sep 17 00:00:00 2001
+From: Banshee <>
+Date: Tue, 20 Oct 2026 12:12:42 +0200
+Subject: [PATCH] WASAPI: check device shutdown during WaitDevice
+
+---
+ src/audio/wasapi/SDL_wasapi.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/audio/wasapi/SDL_wasapi.c b/src/audio/wasapi/SDL_wasapi.c
+index c01f007ff..9c6114517 100644
+--- a/src/audio/wasapi/SDL_wasapi.c
++++ b/src/audio/wasapi/SDL_wasapi.c
+@@ -545,6 +545,10 @@ static bool WASAPI_WaitDevice(SDL_AudioDevice *device)
+ {
+     // WaitDevice does not hold the device lock, so check for recovery/disconnect details here.
+     while (RecoverWasapiIfLost(device) && device->hidden->client && device->hidden->event) {
++        if (SDL_GetAtomicInt(&device->shutdown)) {
++            return false;
++        }
++
+         if (device->recording) {
+             // Recording devices should return immediately if there is any data available
+             UINT32 padding = 0;
+@@ -581,6 +585,10 @@ static bool WASAPI_WaitDevice(SDL_AudioDevice *device)
+                 return false;
+             }
+         }
++
++        if (SDL_GetAtomicInt(&device->shutdown)) {
++            return false;
++        }
+     }
+ 
+     return true;
+-- 
+2.56.0.windows.2

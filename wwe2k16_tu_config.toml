@@ -1,0 +1,14 @@
+project_name = "wwe2k16"
+file_path = "game_tu/default.xex"
+out_directory_path = "generated_tu"
+
+# WWE 2K16 with title update 3 (tu00000003, version 3.0.5.0): game_tu\ holds your default.xex plus default.xexp from
+# the update package; the runtime applies the patch while loading, so the codegen sees the updated code.
+# tools\build-tu.ps1 sets this up. Function lists come from the same scans as config\ run on the updated image
+# (work\image_tu.bin).
+
+# setjmp / longjmp (retail 0x831EFB10 / 0x831EF7F0, see wwe2k16_config.toml).
+setjmp_address = 0x831F8800
+longjmp_address = 0x831F84E0
+
+includes = ["config_tu/functions.toml", "config_tu/functions_fptrs.toml", "config_tu/functions_thunks.toml", "config_tu/hooks.toml"]

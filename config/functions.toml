@@ -1,0 +1,7 @@
+# Extra function entry points the recompiler misses ([functions] address = size).
+
+[functions]
+
+# First codegen: UnresolvedCall targets reached only by a `b` tail call (no .pdata entry). Sizes left to the scanner.
+0x82750B38 = { name = "wwe2k16_tail_82750B38" }   # b from 0x826977BC
+0x82E86A94 = { name = "wwe2k16_tail_82E86A94" }   # b from 0x82E86AD0

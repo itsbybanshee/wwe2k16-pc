@@ -5,6 +5,12 @@ WWE 2K16 PC recompilation with a modern launcher, graphics options, non-destruct
 - No game data included. You need your own legally acquired WWE 2K16 (Xbox 360) files: a disc image (`.iso`) or the
   extracted game folder.
 
+## Socials
+
+If you want to support me, here's my [Patreon](https://www.patreon.com/c/Banshee734).
+
+To keep up with updates, follow me on [Twitter](https://x.com/itsbybanshee).
+
 ## Features
 
 - **Resolution**: 720p, 1080p, 1440p or 4K

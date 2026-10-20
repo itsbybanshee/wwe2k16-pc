@@ -1,0 +1,566 @@
+diff --git a/src/core/freeze_logger.cpp b/src/core/freeze_logger.cpp
+index 4247468..b06b978 100644
+--- a/src/core/freeze_logger.cpp
++++ b/src/core/freeze_logger.cpp
+@@ -58,7 +58,7 @@ constexpr uint32_t kRingSize = 4096;
+ constexpr int kMaxThreads = 64;
+ constexpr uint32_t kMaxCaptureDepth = 24;
+ constexpr int kFreezeGapSeconds = 10;
+-// Exit snapshot: how many wwe2k16-exit-*.txt files to keep, and the wait length
++// Exit snapshot: how many wwe2k16-exit-*.txt files to keep, and the wait length
+ // counted as long in the exit summary line.
+ constexpr size_t kKeepExitSnapshots = 3;
+ constexpr int kLongWaitSeconds = 15;
+@@ -625,7 +625,7 @@ void GenerateReport(uint64_t now_ns, uint64_t last_present_ns, bool at_close) {
+   std::strftime(stamp, sizeof(stamp), "%Y%m%d-%H%M%S", &local);
+ 
+   const std::string dir = ReportDir();
+-  const char* prefix = at_close ? "wwe2k16-exit-" : "wwe2k16-freeze-";
++  const char* prefix = at_close ? "wwe2k16-exit-" : "wwe2k16-freeze-";
+   if (at_close) PruneReports(dir, prefix, kKeepExitSnapshots - 1);
+   const std::string path = dir + "/" + prefix + stamp + ".txt";
+   FILE* file = std::fopen(path.c_str(), "wb");
+@@ -636,7 +636,7 @@ void GenerateReport(uint64_t now_ns, uint64_t last_present_ns, bool at_close) {
+   const double gap_s = double(now_ns - last_present_ns) / 1e9;
+   const double vdswap_gap_s =
+       last_vdswap_ns ? double(now_ns - last_vdswap_ns) / 1e9 : -1.0;
+-  std::fprintf(file, at_close ? "WWE 2K16 exit snapshot\n" : "WWE 2K16 freeze report\n");
++  std::fprintf(file, at_close ? "WWE 2K16 exit snapshot\n" : "WWE 2K16 freeze report\n");
+   std::fprintf(file, "generated: %s  uptime_s=%.1f\n", stamp, double(now_ns - g_start_ns) / 1e9);
+   if (at_close) {
+     std::fprintf(file,
+@@ -837,7 +837,7 @@ void GenerateReport(uint64_t now_ns, uint64_t last_present_ns, bool at_close) {
+       if (wait_since == 0) continue;
+       ++blocked_count;
+       // The test hook's synthetic wait is the injected block: always prefer it.
+-      if (std::strcmp(g_slots[i].wait_name, "wwe2k16-freeze-test") == 0) {
++      if (std::strcmp(g_slots[i].wait_name, "wwe2k16-freeze-test") == 0) {
+         blocked = i;
+         oldest_wait = wait_since;
+         break;
+@@ -897,12 +897,12 @@ void RecordPresent() {
+ }
+ bool TestBlockVdSwapOnce() {
+   static const bool armed = [] {
+-    const char* value = std::getenv("WWE2K16_FREEZE_TEST_BLOCK");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_BLOCK");
+     return value != nullptr && *value != '\0';
+   }();
+   if (!armed) return false;
+   static const uint64_t delay_ns = [] {
+-    const char* value = std::getenv("WWE2K16_FREEZE_TEST_BLOCK");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_BLOCK");
+     char* end = nullptr;
+     const long seconds = std::strtol(value, &end, 10);
+     if (end == value || *end != '\0' || seconds <= 0) return uint64_t(60) * 1000000000ull;
+@@ -913,10 +913,10 @@ bool TestBlockVdSwapOnce() {
+   if (NowNs() - g_start_ns < delay_ns) return false;
+   bool expected = false;
+   if (!triggered.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) return false;
+-  RecordWaitBegin(0, 2 /* Event */, "wwe2k16-freeze-test", 0);
++  RecordWaitBegin(0, 2 /* Event */, "wwe2k16-freeze-test", 0);
+   REXLOG_WARN(
+       "[freeze-logger] positive control: blocking guest VdSwap thread tid={} on "
+-      "wwe2k16-freeze-test",
++      "wwe2k16-freeze-test",
+       rex::thread::current_thread_system_id());
+   return true;
+ }
+@@ -927,7 +927,7 @@ extern "C" {
+ #if defined(__GNUC__) || defined(__clang__)
+ __attribute__((noinline))
+ #endif
+-void wwe2k16_freeze_test_spin() {
++void wwe2k16_freeze_test_spin() {
+   volatile uint64_t counter = 0;
+   for (;;) {
+     counter = counter + 1;
+@@ -938,12 +938,12 @@ void wwe2k16_freeze_test_spin() {
+ 
+ bool TestSpinVdSwapOnce() {
+   static const bool armed = [] {
+-    const char* value = std::getenv("WWE2K16_FREEZE_TEST_SPIN");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_SPIN");
+     return value != nullptr && *value != '\0';
+   }();
+   if (!armed) return false;
+   static const uint64_t delay_ns = [] {
+-    const char* value = std::getenv("WWE2K16_FREEZE_TEST_SPIN");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_SPIN");
+     char* end = nullptr;
+     const long seconds = std::strtol(value, &end, 10);
+     if (end == value || *end != '\0' || seconds <= 0) return uint64_t(60) * 1000000000ull;
+@@ -970,7 +970,7 @@ void RecordVdSwap() {
+     for (;;) std::this_thread::sleep_for(std::chrono::seconds(1));
+   }
+   if (TestSpinVdSwapOnce()) {
+-    wwe2k16_freeze_test_spin();
++    wwe2k16_freeze_test_spin();
+   }
+   g_last_vdswap_ns.store(NowNs(), std::memory_order_release);
+   g_vdswap_count.fetch_add(1, std::memory_order_relaxed);
+@@ -980,15 +980,15 @@ void RecordSyncEvent(SyncType type, uint32_t handle, uint32_t object_type, const
+   PushEvent(type, handle, object_type, name);
+ }
+ 
+-// Test hook for the GitHub #21/#25 shape: WWE2K16_FREEZE_TEST_STALL=<seconds>
++// Test hook for the GitHub #21/#25 shape: WWE2K16_FREEZE_TEST_STALL=<seconds>
+ // parks the first guest thread that enters a kernel wait after that delay
+ // (never the VdSwap/present threads) forever, so presents continue while that
+ // thread is stuck. The exit snapshot must then name it.
+-// WWE2K16_FREEZE_TEST_STALL_ON=<substring> restricts it to a wait object whose
++// WWE2K16_FREEZE_TEST_STALL_ON=<substring> restricts it to a wait object whose
+ // name contains that text (e.g. the file loader's event, as in GitHub #25).
+ bool TestStallWaitOnce(const char* wait_name) {
+   static const uint64_t delay_ns = []() -> uint64_t {
+-    const char* value = std::getenv("WWE2K16_FREEZE_TEST_STALL");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_STALL");
+     if (!value || !*value) return uint64_t(0);
+     char* end = nullptr;
+     const long seconds = std::strtol(value, &end, 10);
+@@ -999,7 +999,7 @@ bool TestStallWaitOnce(const char* wait_name) {
+   static std::atomic<bool> triggered{false};
+   if (triggered.load(std::memory_order_relaxed)) return false;
+   if (NowNs() - g_start_ns < delay_ns) return false;
+-  static const char* only_on = std::getenv("WWE2K16_FREEZE_TEST_STALL_ON");
++  static const char* only_on = std::getenv("WWE2K16_FREEZE_TEST_STALL_ON");
+   if (only_on && *only_on && (!wait_name || !std::strstr(wait_name, only_on))) return false;
+   const uint32_t tid = rex::thread::current_thread_system_id();
+   if (tid == g_last_vdswap_host_tid.load(std::memory_order_relaxed) ||
+@@ -1122,7 +1122,7 @@ void Start() {
+   std::lock_guard<std::mutex> lock(g_lifecycle);
+   if (g_started.load(std::memory_order_acquire)) return;
+   g_started.store(true, std::memory_order_release);
+-  const char* disable = std::getenv("WWE2K16_FREEZE_LOG");
++  const char* disable = std::getenv("WWE2K16_FREEZE_LOG");
+   const char* disable_generic = std::getenv("REX_FREEZE_LOG_DISABLE");
+   const bool disabled = (disable && std::strcmp(disable, "0") == 0) ||
+                         (disable_generic && std::strcmp(disable_generic, "1") == 0);
+diff --git a/src/input/mnk/mnk_input_driver.cpp b/src/input/mnk/mnk_input_driver.cpp
+index 2f9075b..6cf980d 100644
+--- a/src/input/mnk/mnk_input_driver.cpp
++++ b/src/input/mnk/mnk_input_driver.cpp
+@@ -21,8 +21,14 @@
+ #include <rex/ui/window.h>
+ 
+ #include <algorithm>
++#include <array>
++#include <atomic>
+ #include <cmath>
+ #include <cstring>
++#include <memory>
++#include <mutex>
++#include <utility>
++#include <vector>
+ 
+ #if REX_PLATFORM_WIN32
+ #include <rex/ui/window_win.h>
+@@ -35,8 +41,8 @@ REXCVAR_DEFINE_INT32(mnk_user_index, 0, "Input", "Controller slot (0-3) for MnK"
+ REXCVAR_DEFINE_DOUBLE(mnk_sensitivity, 1.0, "Input", "Mouse sensitivity for right stick")
+     .range(0.01, 10.0);
+ 
+-REXCVAR_DEFINE_STRING(keybind_a, "L", "Input/Keybinds/Controller", "A button");
+-REXCVAR_DEFINE_STRING(keybind_b, "K", "Input/Keybinds/Controller", "B button");
++REXCVAR_DEFINE_STRING(keybind_a, "L,Return", "Input/Keybinds/Controller", "A button");
++REXCVAR_DEFINE_STRING(keybind_b, "K,Escape", "Input/Keybinds/Controller", "B button");
+ REXCVAR_DEFINE_STRING(keybind_x, "J", "Input/Keybinds/Controller", "X button");
+ REXCVAR_DEFINE_STRING(keybind_y, "Space", "Input/Keybinds/Controller", "Y button");
+ REXCVAR_DEFINE_STRING(keybind_left_trigger, "Shift", "Input/Keybinds/Controller", "Left trigger");
+@@ -58,7 +64,7 @@ REXCVAR_DEFINE_STRING(keybind_dpad_down, "Down,2", "Input/Keybinds/Controller",
+ REXCVAR_DEFINE_STRING(keybind_dpad_left, "Left,3", "Input/Keybinds/Controller", "D-pad left");
+ REXCVAR_DEFINE_STRING(keybind_dpad_right, "Right,4", "Input/Keybinds/Controller", "D-pad right");
+ REXCVAR_DEFINE_STRING(keybind_back, "Tab", "Input/Keybinds/Controller", "Back button");
+-REXCVAR_DEFINE_STRING(keybind_start, "Escape", "Input/Keybinds/Controller", "Start button");
++REXCVAR_DEFINE_STRING(keybind_start, "Return", "Input/Keybinds/Controller", "Start button");
+ REXCVAR_DEFINE_STRING(keybind_guide, "", "Input/Keybinds/Controller", "Guide button");
+ 
+ namespace rex::input::mnk {
+@@ -86,26 +92,133 @@ bool IsControlKeyDown(const bool (&key_down)[256]) {
+          key_down[static_cast<uint16_t>(VirtualKey::kRControl)];
+ }
+ 
+-VirtualKey GetPadVirtualKey(VirtualKey k) {
+-  switch (k) {
+-    case VirtualKey::kReturn: return VirtualKey::kXInputPadStart;
+-    case VirtualKey::kEscape: return VirtualKey::kXInputPadB;
+-    case VirtualKey::kBack: return VirtualKey::kXInputPadB;
+-    case VirtualKey::kSpace: return VirtualKey::kXInputPadA;
+-    case VirtualKey::kK: return VirtualKey::kXInputPadA;
+-    case VirtualKey::kL: return VirtualKey::kXInputPadB;
+-    case VirtualKey::kJ: return VirtualKey::kXInputPadX;
+-    case VirtualKey::kI: return VirtualKey::kXInputPadY;
+-    case VirtualKey::kUp:
+-    case VirtualKey::kW: return VirtualKey::kXInputPadDpadUp;
+-    case VirtualKey::kDown:
+-    case VirtualKey::kS: return VirtualKey::kXInputPadDpadDown;
+-    case VirtualKey::kLeft:
+-    case VirtualKey::kA: return VirtualKey::kXInputPadDpadLeft;
+-    case VirtualKey::kRight:
+-    case VirtualKey::kD: return VirtualKey::kXInputPadDpadRight;
+-    default: return VirtualKey::kNone;
++struct ParsedBinding {
++  std::vector<VirtualKey> keys;
++};
++
++struct BindingCache {
++  std::array<ParsedBinding, 25> bindings;
++};
++
++std::atomic<std::shared_ptr<const BindingCache>> g_binding_cache;
++std::mutex g_binding_cache_mutex;
++std::once_flag g_binding_cache_init;
++
++ParsedBinding ParseBinding(const std::string& binding) {
++  ParsedBinding parsed;
++  size_t start = 0;
++  while (start <= binding.size()) {
++    size_t end = binding.find(',', start);
++    if (end == std::string::npos) end = binding.size();
++    std::string name = binding.substr(start, end - start);
++    while (!name.empty() && name.front() == ' ') name.erase(name.begin());
++    while (!name.empty() && name.back() == ' ') name.pop_back();
++    const VirtualKey key = rex::ui::ParseVirtualKey(name);
++    auto add = [&](VirtualKey candidate) {
++      if (candidate != VirtualKey::kNone &&
++          std::find(parsed.keys.begin(), parsed.keys.end(), candidate) == parsed.keys.end()) {
++        parsed.keys.push_back(candidate);
++      }
++    };
++    add(key);
++    if (key == VirtualKey::kShift) {
++      add(VirtualKey::kLShift);
++      add(VirtualKey::kRShift);
++    } else if (key == VirtualKey::kControl) {
++      add(VirtualKey::kLControl);
++      add(VirtualKey::kRControl);
++    }
++    start = end + 1;
+   }
++  return parsed;
++}
++
++constexpr std::array<const char*, 25> kBindingNames = {
++    "keybind_a", "keybind_b", "keybind_x", "keybind_y", "keybind_left_shoulder",
++    "keybind_right_shoulder", "keybind_left_trigger", "keybind_right_trigger", "keybind_start",
++    "keybind_back", "keybind_lstick_press", "keybind_rstick_press", "keybind_lstick_up",
++    "keybind_lstick_down", "keybind_lstick_left", "keybind_lstick_right", "keybind_rstick_up",
++    "keybind_rstick_down", "keybind_rstick_left", "keybind_rstick_right", "keybind_dpad_up",
++    "keybind_dpad_down", "keybind_dpad_left", "keybind_dpad_right", "keybind_guide"};
++
++std::array<std::string, 25> ReadBindingValues() {
++  return {REXCVAR_GET(keybind_a), REXCVAR_GET(keybind_b), REXCVAR_GET(keybind_x),
++          REXCVAR_GET(keybind_y), REXCVAR_GET(keybind_left_shoulder),
++          REXCVAR_GET(keybind_right_shoulder), REXCVAR_GET(keybind_left_trigger),
++          REXCVAR_GET(keybind_right_trigger), REXCVAR_GET(keybind_start), REXCVAR_GET(keybind_back),
++          REXCVAR_GET(keybind_lstick_press), REXCVAR_GET(keybind_rstick_press),
++          REXCVAR_GET(keybind_lstick_up), REXCVAR_GET(keybind_lstick_down),
++          REXCVAR_GET(keybind_lstick_left), REXCVAR_GET(keybind_lstick_right),
++          REXCVAR_GET(keybind_rstick_up), REXCVAR_GET(keybind_rstick_down),
++          REXCVAR_GET(keybind_rstick_left), REXCVAR_GET(keybind_rstick_right),
++          REXCVAR_GET(keybind_dpad_up), REXCVAR_GET(keybind_dpad_down),
++          REXCVAR_GET(keybind_dpad_left), REXCVAR_GET(keybind_dpad_right), REXCVAR_GET(keybind_guide)};
++}
++
++void InitializeBindingCache() {
++  std::call_once(g_binding_cache_init, [] {
++    auto cache = std::make_shared<BindingCache>();
++    const auto values = ReadBindingValues();
++    for (size_t i = 0; i < values.size(); ++i) cache->bindings[i] = ParseBinding(values[i]);
++    g_binding_cache.store(std::shared_ptr<const BindingCache>(cache));
++    for (size_t i = 0; i < kBindingNames.size(); ++i) {
++      rex::cvar::RegisterChangeCallback(kBindingNames[i], [i](std::string_view, std::string_view value) {
++        std::lock_guard lock(g_binding_cache_mutex);
++        auto current = g_binding_cache.load();
++        if (!current) return;
++        auto updated = std::make_shared<BindingCache>(*current);
++        updated->bindings[i] = ParseBinding(std::string(value));
++        g_binding_cache.store(std::shared_ptr<const BindingCache>(updated));
++      });
++    }
++  });
++}
++
++std::shared_ptr<const BindingCache> GetBindingCache() {
++  InitializeBindingCache();
++  return g_binding_cache.load();
++}
++
++bool IsBindPressed(const bool (&key_down)[256], const ParsedBinding& binding) {
++  for (VirtualKey key : binding.keys) {
++    const uint16_t index = static_cast<uint16_t>(key);
++    if (index < 256 && key_down[index]) return true;
++  }
++  return false;
++}
++
++struct PadKeyList {
++  std::array<VirtualKey, 24> values{};
++  size_t count = 0;
++  const VirtualKey* begin() const { return values.data(); }
++  const VirtualKey* end() const { return values.data() + count; }
++  void push_back(VirtualKey key) {
++    if (count < values.size()) values[count++] = key;
++  }
++};
++
++PadKeyList GetPadVirtualKeys(VirtualKey key) {
++  static constexpr std::array<std::pair<size_t, VirtualKey>, 24> pad_bindings = {{
++      {0, VirtualKey::kXInputPadA}, {1, VirtualKey::kXInputPadB}, {2, VirtualKey::kXInputPadX},
++      {3, VirtualKey::kXInputPadY}, {4, VirtualKey::kXInputPadLShoulder},
++      {5, VirtualKey::kXInputPadRShoulder}, {6, VirtualKey::kXInputPadLTrigger},
++      {7, VirtualKey::kXInputPadRTrigger}, {8, VirtualKey::kXInputPadStart},
++      {9, VirtualKey::kXInputPadBack}, {10, VirtualKey::kXInputPadLThumbPress},
++      {11, VirtualKey::kXInputPadRThumbPress}, {12, VirtualKey::kXInputPadLThumbUp},
++      {13, VirtualKey::kXInputPadLThumbDown}, {14, VirtualKey::kXInputPadLThumbLeft},
++      {15, VirtualKey::kXInputPadLThumbRight}, {16, VirtualKey::kXInputPadRThumbUp},
++      {17, VirtualKey::kXInputPadRThumbDown}, {18, VirtualKey::kXInputPadRThumbLeft},
++      {19, VirtualKey::kXInputPadRThumbRight}, {20, VirtualKey::kXInputPadDpadUp},
++      {21, VirtualKey::kXInputPadDpadDown}, {22, VirtualKey::kXInputPadDpadLeft},
++      {23, VirtualKey::kXInputPadDpadRight}}};
++  const auto cache = GetBindingCache();
++  PadKeyList mapped;
++  if (!cache) return mapped;
++  for (const auto& [index, pad_key] : pad_bindings) {
++    const auto& keys = cache->bindings[index].keys;
++    if (std::find(keys.begin(), keys.end(), key) != keys.end()) mapped.push_back(pad_key);
++  }
++  return mapped;
+ }
+ 
+ }  // namespace
+@@ -123,6 +236,7 @@ MnkInputDriver::~MnkInputDriver() {
+ }
+ 
+ X_STATUS MnkInputDriver::Setup() {
++  InitializeBindingCache();
+   REXLOG_INFO("MnK input driver initialized");
+   return X_STATUS_SUCCESS;
+ }
+@@ -156,39 +270,6 @@ bool MnkInputDriver::IsEnabled() const {
+   return REXCVAR_GET(mnk_mode);
+ }
+ 
+-// A binding is a comma-separated list of key names ("Space,K"); any of them presses the button. "Shift" and "Control"
+-// also match the left / right keys.
+-static bool IsBindPressed(const bool (&key_down)[256], const std::string& cvar_val) {
+-  auto down = [&](VirtualKey vk) {
+-    uint16_t idx = static_cast<uint16_t>(vk);
+-    return idx < 256 && key_down[idx];
+-  };
+-  size_t start = 0;
+-  while (start <= cvar_val.size()) {
+-    size_t end = cvar_val.find(',', start);
+-    if (end == std::string::npos)
+-      end = cvar_val.size();
+-    std::string name = cvar_val.substr(start, end - start);
+-    while (!name.empty() && name.front() == ' ')
+-      name.erase(name.begin());
+-    while (!name.empty() && name.back() == ' ')
+-      name.pop_back();
+-    if (name == "Shift") {
+-      if (down(VirtualKey::kShift) || down(VirtualKey::kLShift) || down(VirtualKey::kRShift))
+-        return true;
+-    } else if (name == "Control") {
+-      if (down(VirtualKey::kControl) || down(VirtualKey::kLControl) || down(VirtualKey::kRControl))
+-        return true;
+-    } else if (!name.empty()) {
+-      VirtualKey vk = rex::ui::ParseVirtualKey(name);
+-      if (vk != VirtualKey::kNone && down(vk))
+-        return true;
+-    }
+-    start = end + 1;
+-  }
+-  return false;
+-}
+-
+ // Virtual keys consumed by the guest's front-end keyboard UI through
+ // XamInputGetKeystroke(Ex): the standard VK navigation/action set (the guest
+ // pump dispatches on VK codes 3..40 and consumes the VK_SHIFT key-up). Only
+@@ -333,70 +414,67 @@ X_RESULT MnkInputDriver::GetState(uint32_t user_index, X_INPUT_STATE* out_state)
+     return X_ERROR_SUCCESS;
+   }
+ 
+-  auto is_key = [&](VirtualKey vk) -> bool {
+-    uint16_t idx = static_cast<uint16_t>(vk);
+-    return idx < 256 && key_down_[idx];
+-  };
+-
++  const auto bindings = GetBindingCache();
++  if (!bindings) return X_ERROR_FUNCTION_FAILED;
+   uint16_t buttons = 0;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_a)))
++  if (IsBindPressed(key_down_, bindings->bindings[0]))
+     buttons |= X_INPUT_GAMEPAD_A;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_b)))
++  if (IsBindPressed(key_down_, bindings->bindings[1]))
+     buttons |= X_INPUT_GAMEPAD_B;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_x)))
++  if (IsBindPressed(key_down_, bindings->bindings[2]))
+     buttons |= X_INPUT_GAMEPAD_X;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_y)))
++  if (IsBindPressed(key_down_, bindings->bindings[3]))
+     buttons |= X_INPUT_GAMEPAD_Y;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_left_shoulder)))
++  if (IsBindPressed(key_down_, bindings->bindings[4]))
+     buttons |= X_INPUT_GAMEPAD_LEFT_SHOULDER;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_right_shoulder)))
++  if (IsBindPressed(key_down_, bindings->bindings[5]))
+     buttons |= X_INPUT_GAMEPAD_RIGHT_SHOULDER;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_lstick_press)))
++  if (IsBindPressed(key_down_, bindings->bindings[10]))
+     buttons |= X_INPUT_GAMEPAD_LEFT_THUMB;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_rstick_press)))
++  if (IsBindPressed(key_down_, bindings->bindings[11]))
+     buttons |= X_INPUT_GAMEPAD_RIGHT_THUMB;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_back)))
++  if (IsBindPressed(key_down_, bindings->bindings[9]))
+     buttons |= X_INPUT_GAMEPAD_BACK;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_start)))
++  if (IsBindPressed(key_down_, bindings->bindings[8]))
+     buttons |= X_INPUT_GAMEPAD_START;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_guide)))
++  if (IsBindPressed(key_down_, bindings->bindings[24]))
+     buttons |= X_INPUT_GAMEPAD_GUIDE;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_dpad_up)))
++  if (IsBindPressed(key_down_, bindings->bindings[20]))
+     buttons |= X_INPUT_GAMEPAD_DPAD_UP;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_dpad_down)))
++  if (IsBindPressed(key_down_, bindings->bindings[21]))
+     buttons |= X_INPUT_GAMEPAD_DPAD_DOWN;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_dpad_left)))
++  if (IsBindPressed(key_down_, bindings->bindings[22]))
+     buttons |= X_INPUT_GAMEPAD_DPAD_LEFT;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_dpad_right)))
++  if (IsBindPressed(key_down_, bindings->bindings[23]))
+     buttons |= X_INPUT_GAMEPAD_DPAD_RIGHT;
+ 
+-  const bool lt_pressed = IsBindPressed(key_down_, REXCVAR_GET(keybind_left_trigger));
+-  const bool rt_pressed = IsBindPressed(key_down_, REXCVAR_GET(keybind_right_trigger));
++  const bool lt_pressed = IsBindPressed(key_down_, bindings->bindings[6]);
++  const bool rt_pressed = IsBindPressed(key_down_, bindings->bindings[7]);
+   uint8_t lt = lt_pressed ? 0xFF : 0;
+   uint8_t rt = rt_pressed ? 0xFF : 0;
+ 
+   int32_t lx = 0;
+   int32_t ly = 0;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_lstick_left)))
++  if (IsBindPressed(key_down_, bindings->bindings[14]))
+     lx -= INT16_MAX;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_lstick_right)))
++  if (IsBindPressed(key_down_, bindings->bindings[15]))
+     lx += INT16_MAX;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_lstick_up)))
++  if (IsBindPressed(key_down_, bindings->bindings[12]))
+     ly += INT16_MAX;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_lstick_down)))
++  if (IsBindPressed(key_down_, bindings->bindings[13]))
+     ly -= INT16_MAX;
+ 
+   double sensitivity = REXCVAR_GET(mnk_sensitivity);
+   constexpr double kBaseScale = 200.0;
+   int32_t rx = 0;
+   int32_t ry = 0;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_rstick_left)))
++  if (IsBindPressed(key_down_, bindings->bindings[18]))
+     rx -= INT16_MAX;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_rstick_right)))
++  if (IsBindPressed(key_down_, bindings->bindings[19]))
+     rx += INT16_MAX;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_rstick_up)))
++  if (IsBindPressed(key_down_, bindings->bindings[16]))
+     ry += INT16_MAX;
+-  if (IsBindPressed(key_down_, REXCVAR_GET(keybind_rstick_down)))
++  if (IsBindPressed(key_down_, bindings->bindings[17]))
+     ry -= INT16_MAX;
+   rx += static_cast<int32_t>(mouse_dx_ * sensitivity * kBaseScale);
+   ry += static_cast<int32_t>(-mouse_dy_ * sensitivity * kBaseScale);
+@@ -431,7 +509,11 @@ X_RESULT MnkInputDriver::SetState(uint32_t user_index, X_INPUT_VIBRATION* vibrat
+ 
+ X_RESULT MnkInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
+                                       X_INPUT_KEYSTROKE* out_keystroke) {
+-  if (!IsEnabled() || user_index != UserIndex()) {
++  // XamInputGetKeystroke is commonly called with XUSER_INDEX_ANY (0xFF) by
++  // front-end menus. Keep the keyboard-emulated controller visible for that
++  // query as SDL's physical-controller driver does.
++  constexpr uint32_t kAnyUser = 0xFF;
++  if (!IsEnabled() || (user_index != UserIndex() && user_index != kAnyUser)) {
+     return X_ERROR_DEVICE_NOT_CONNECTED;
+   }
+   std::lock_guard lock(state_mutex_);
+@@ -440,6 +522,7 @@ X_RESULT MnkInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
+   }
+   if (out_keystroke) {
+     *out_keystroke = keystroke_queue_.front();
++    if (user_index == kAnyUser) out_keystroke->user_index = static_cast<uint8_t>(UserIndex());
+   }
+   keystroke_queue_.pop();
+   return X_ERROR_SUCCESS;
+@@ -558,8 +641,7 @@ void MnkInputDriver::OnKeyDown(rex::ui::KeyEvent& e) {
+       EnqueueKeystroke(vk, true, 0, e.prev_state());
+     }
+     if (!ctrl_v) {
+-      VirtualKey pad_vk = GetPadVirtualKey(static_cast<VirtualKey>(vk));
+-      if (pad_vk != VirtualKey::kNone) {
++      for (VirtualKey pad_vk : GetPadVirtualKeys(static_cast<VirtualKey>(vk))) {
+         EnqueueKeystroke(static_cast<uint16_t>(pad_vk), true, 0, e.prev_state());
+       }
+     }
+@@ -622,8 +704,7 @@ void MnkInputDriver::OnKeyUp(rex::ui::KeyEvent& e) {
+   if (IsUiKeystrokeKey(vk)) {
+     EnqueueKeystroke(vk, false);
+   }
+-  VirtualKey pad_vk = GetPadVirtualKey(static_cast<VirtualKey>(vk));
+-  if (pad_vk != VirtualKey::kNone) {
++  for (VirtualKey pad_vk : GetPadVirtualKeys(static_cast<VirtualKey>(vk))) {
+     EnqueueKeystroke(static_cast<uint16_t>(pad_vk), false);
+   }
+ }
+diff --git a/src/ui/windowed_app_context_win.cpp b/src/ui/windowed_app_context_win.cpp
+index f4986bd..fd4f8fc 100644
+--- a/src/ui/windowed_app_context_win.cpp
++++ b/src/ui/windowed_app_context_win.cpp
+@@ -121,7 +121,7 @@ bool Win32WindowedAppContext::ShowSimpleMessageBox(const char* const title,
+     return false;
+   }
+   return MessageBoxW(nullptr, wide_message.c_str(),
+-                     wide_title.empty() ? L"WWE 2K16" : wide_title.c_str(),
++                     wide_title.empty() ? L"WWE 2K16" : wide_title.c_str(),
+                      MB_OK | MB_ICONERROR | MB_TASKMODAL) != 0;
+ }
+ 
+diff --git a/src/ui/windowed_app_main_posix.cpp b/src/ui/windowed_app_main_posix.cpp
+index c81c2ed..fd4647a 100644
+--- a/src/ui/windowed_app_main_posix.cpp
++++ b/src/ui/windowed_app_main_posix.cpp
+@@ -50,7 +50,7 @@ extern "C" int main(int argc_pre_gtk, char** argv_pre_gtk) {
+   auto init_result = rex::cvar::Init(argc_post_gtk, argv_post_gtk);
+   if (init_result.parse_error) {
+     std::fprintf(stderr,
+-                 "WWE 2K16 could not start: invalid launch option: %s. Check your shortcut or launcher settings.\n",
++                 "WWE 2K16 could not start: invalid launch option: %s. Check your shortcut or launcher settings.\n",
+                  init_result.parse_error->c_str());
+     return EXIT_FAILURE;
+   }
+diff --git a/src/ui/windowed_app_main_win.cpp b/src/ui/windowed_app_main_win.cpp
+index 6d6fd8a..b8f3bc6 100644
+--- a/src/ui/windowed_app_main_win.cpp
++++ b/src/ui/windowed_app_main_win.cpp
+@@ -71,10 +71,10 @@ int WINAPI wWinMain(HINSTANCE hinstance, HINSTANCE hinstance_prev, LPWSTR comman
+   }
+   auto init_result = rex::cvar::Init(static_cast<int>(argv_ptrs.size()), argv_ptrs.data());
+   if (init_result.parse_error) {
+-    std::string message = "WWE 2K16 could not start: invalid launch option: " +
++    std::string message = "WWE 2K16 could not start: invalid launch option: " +
+                           *init_result.parse_error +
+                           ". Check your shortcut or launcher settings.";
+-    MessageBoxA(nullptr, message.c_str(), "WWE 2K16", MB_OK | MB_ICONERROR);
++    MessageBoxA(nullptr, message.c_str(), "WWE 2K16", MB_OK | MB_ICONERROR);
+     return EXIT_FAILURE;
+   }
+   if (init_result.exit_requested) {
+diff --git a/thirdparty/sdl3 b/thirdparty/sdl3
+--- a/thirdparty/sdl3
++++ b/thirdparty/sdl3
+@@ -1 +1 @@
+-Subproject commit 8bf3b7215ad9fc3deb583c6a3a37c6c67f2e24e4
++Subproject commit 8bf3b7215ad9fc3deb583c6a3a37c6c67f2e24e4-dirty

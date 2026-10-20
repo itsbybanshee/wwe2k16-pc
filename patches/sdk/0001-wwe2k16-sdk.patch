@@ -1,7 +1,7 @@
 ﻿From 2c4548d4fc8706b3e6b3119efd8c69b11b577a8b Mon Sep 17 00:00:00 2001
-From: WWE2K14 PC <wwe2k14@local>
+From: WWE 2K16 PC <wwe2k16@local>
 Date: Mon, 12 Oct 2026 20:18:55 +0200
-Subject: [PATCH 1/2] WWE 2K14 PC: SDK changes
+Subject: [PATCH 1/2] WWE 2K16 PC: SDK changes
 
 Codegen fixes for this engine, memory/MMIO, Vulkan graphics and pacing, kernel/XAM (content, XMP music,
 local achievements), input, audio and diagnostics. Applied by tools/setup.ps1 on top of the base commit.
@@ -751,7 +751,7 @@ index 0000000..a25e33c
 +
 +// Starts the always-on logger: installs the one-shot capture signal handler and
 +// a 1 Hz watchdog thread. No-op when already running, or when disabled with
-+// WWE2K14_FREEZE_LOG=0 / REX_FREEZE_LOG_DISABLE=1.
++// WWE2K16_FREEZE_LOG=0 / REX_FREEZE_LOG_DISABLE=1.
 +// Cheap and safe to call once.
 +void Start();
 +
@@ -759,7 +759,7 @@ index 0000000..a25e33c
 +void Stop();
 +
 +// Writes an exit snapshot (same contents as a freeze report, file
-+// wwe2k14-exit-<stamp>.txt, newest 3 kept) when the player closes the window.
++// wwe2k16-exit-<stamp>.txt, newest 3 kept) when the player closes the window.
 +// Catches freezes where the picture stops but presents continue (GitHub
 +// #21/#25), which the present-gap watchdog cannot see. Call before Stop() and
 +// before the title is terminated. No-op when disabled or nothing was presented.
@@ -865,7 +865,7 @@ index 0000000..28baff6
 +  kCount,
 +};
 +
-+// Starts the census when WWE2K14_RATE_CENSUS is exactly "1". The environment is
++// Starts the census when WWE2K16_RATE_CENSUS is exactly "1". The environment is
 +// sampled once by this call; event recording is otherwise a no-op when the
 +// census is disabled.
 +void Start(uint64_t vblank_interval_ticks, double refresh_rate_hz);
@@ -906,8 +906,8 @@ index 0000000..28baff6
 +                      uint64_t payload_ms_sum);
 +// Global critical region contention (called by global_critical_region when the
 +// census is on): owner is the host tid holding the lock (0 if unknown).
-+// OnGlobalLockContended may send SIGPROF to the owner (WWE2K14_LOCK_OWNER_SAMPLE=1,
-+// only when a SIGPROF handler is installed, i.e. WWE2K14_THREAD_PROFILE is set) so
++// OnGlobalLockContended may send SIGPROF to the owner (WWE2K16_LOCK_OWNER_SAMPLE=1,
++// only when a SIGPROF handler is installed, i.e. WWE2K16_THREAD_PROFILE is set) so
 +// the thread profiler records what the owner is doing.
 +void OnGlobalLockContended(uint32_t owner_tid);
 +void RecordGlobalLockWait(uint32_t owner_tid, uint64_t wait_ns);
@@ -1069,7 +1069,7 @@ index e0679b8..de3a90b 100644
  // GPU Textures
  REXCVAR_DECLARE(bool, gpu_allow_invalid_fetch_constants);
 +REXCVAR_DECLARE(bool, gpu_content_probe);
-+REXCVAR_DECLARE(bool, wwe2k14_dof_composite_nop);
++REXCVAR_DECLARE(bool, wwe2k16_dof_composite_nop);
  REXCVAR_DECLARE(bool, gpu_3d_to_2d_texture);
  REXCVAR_DECLARE(int32_t, anisotropic_override);
  REXCVAR_DECLARE(int32_t, texture_cache_memory_limit_render_to_texture);
@@ -1858,7 +1858,7 @@ index 4b76791..553db47 100644
 +  // readback buffer only - guest physical memory is never touched.
 +  void ContentProbeRecordResolveSample(const draw_util::ResolveInfo& resolve_info);
 +
-+  // GPU timing is sampled once from WWE2K14_GPU_TIMING during Vulkan setup.
++  // GPU timing is sampled once from WWE2K16_GPU_TIMING during Vulkan setup.
 +  // These helpers append deferred category transitions only when it is active.
 +  void SetGpuTimingCategory(GpuTimingCategory category);
 +  void SetGpuTimingSceneDrawCategory(uint32_t render_target_width);
@@ -2840,7 +2840,7 @@ index 6e5755a..c90402e 100644
  //   xe::global_critical_region global_critical_region_;
  //   std::list<...> my_list_;
  // };
-+// Set by the rate census (WWE2K14_RATE_CENSUS=1) to measure global lock
++// Set by the rate census (WWE2K16_RATE_CENSUS=1) to measure global lock
 +// contention; Acquire/AcquireDirect then take the lock via AcquireCensused.
 +extern std::atomic<bool> g_global_lock_census;
 +
@@ -5110,7 +5110,7 @@ index 0000000..4247468
 +constexpr int kMaxThreads = 64;
 +constexpr uint32_t kMaxCaptureDepth = 24;
 +constexpr int kFreezeGapSeconds = 10;
-+// Exit snapshot: how many wwe2k14-exit-*.txt files to keep, and the wait length
++// Exit snapshot: how many wwe2k16-exit-*.txt files to keep, and the wait length
 +// counted as long in the exit summary line.
 +constexpr size_t kKeepExitSnapshots = 3;
 +constexpr int kLongWaitSeconds = 15;
@@ -5677,7 +5677,7 @@ index 0000000..4247468
 +  std::strftime(stamp, sizeof(stamp), "%Y%m%d-%H%M%S", &local);
 +
 +  const std::string dir = ReportDir();
-+  const char* prefix = at_close ? "wwe2k14-exit-" : "wwe2k14-freeze-";
++  const char* prefix = at_close ? "wwe2k16-exit-" : "wwe2k16-freeze-";
 +  if (at_close) PruneReports(dir, prefix, kKeepExitSnapshots - 1);
 +  const std::string path = dir + "/" + prefix + stamp + ".txt";
 +  FILE* file = std::fopen(path.c_str(), "wb");
@@ -5688,7 +5688,7 @@ index 0000000..4247468
 +  const double gap_s = double(now_ns - last_present_ns) / 1e9;
 +  const double vdswap_gap_s =
 +      last_vdswap_ns ? double(now_ns - last_vdswap_ns) / 1e9 : -1.0;
-+  std::fprintf(file, at_close ? "WWE 2K14 exit snapshot\n" : "WWE 2K14 freeze report\n");
++  std::fprintf(file, at_close ? "WWE 2K16 exit snapshot\n" : "WWE 2K16 freeze report\n");
 +  std::fprintf(file, "generated: %s  uptime_s=%.1f\n", stamp, double(now_ns - g_start_ns) / 1e9);
 +  if (at_close) {
 +    std::fprintf(file,
@@ -5889,7 +5889,7 @@ index 0000000..4247468
 +      if (wait_since == 0) continue;
 +      ++blocked_count;
 +      // The test hook's synthetic wait is the injected block: always prefer it.
-+      if (std::strcmp(g_slots[i].wait_name, "wwe2k14-freeze-test") == 0) {
++      if (std::strcmp(g_slots[i].wait_name, "wwe2k16-freeze-test") == 0) {
 +        blocked = i;
 +        oldest_wait = wait_since;
 +        break;
@@ -5949,12 +5949,12 @@ index 0000000..4247468
 +}
 +bool TestBlockVdSwapOnce() {
 +  static const bool armed = [] {
-+    const char* value = std::getenv("WWE2K14_FREEZE_TEST_BLOCK");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_BLOCK");
 +    return value != nullptr && *value != '\0';
 +  }();
 +  if (!armed) return false;
 +  static const uint64_t delay_ns = [] {
-+    const char* value = std::getenv("WWE2K14_FREEZE_TEST_BLOCK");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_BLOCK");
 +    char* end = nullptr;
 +    const long seconds = std::strtol(value, &end, 10);
 +    if (end == value || *end != '\0' || seconds <= 0) return uint64_t(60) * 1000000000ull;
@@ -5965,10 +5965,10 @@ index 0000000..4247468
 +  if (NowNs() - g_start_ns < delay_ns) return false;
 +  bool expected = false;
 +  if (!triggered.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) return false;
-+  RecordWaitBegin(0, 2 /* Event */, "wwe2k14-freeze-test", 0);
++  RecordWaitBegin(0, 2 /* Event */, "wwe2k16-freeze-test", 0);
 +  REXLOG_WARN(
 +      "[freeze-logger] positive control: blocking guest VdSwap thread tid={} on "
-+      "wwe2k14-freeze-test",
++      "wwe2k16-freeze-test",
 +      rex::thread::current_thread_system_id());
 +  return true;
 +}
@@ -5979,7 +5979,7 @@ index 0000000..4247468
 +#if defined(__GNUC__) || defined(__clang__)
 +__attribute__((noinline))
 +#endif
-+void wwe2k14_freeze_test_spin() {
++void wwe2k16_freeze_test_spin() {
 +  volatile uint64_t counter = 0;
 +  for (;;) {
 +    counter = counter + 1;
@@ -5990,12 +5990,12 @@ index 0000000..4247468
 +
 +bool TestSpinVdSwapOnce() {
 +  static const bool armed = [] {
-+    const char* value = std::getenv("WWE2K14_FREEZE_TEST_SPIN");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_SPIN");
 +    return value != nullptr && *value != '\0';
 +  }();
 +  if (!armed) return false;
 +  static const uint64_t delay_ns = [] {
-+    const char* value = std::getenv("WWE2K14_FREEZE_TEST_SPIN");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_SPIN");
 +    char* end = nullptr;
 +    const long seconds = std::strtol(value, &end, 10);
 +    if (end == value || *end != '\0' || seconds <= 0) return uint64_t(60) * 1000000000ull;
@@ -6022,7 +6022,7 @@ index 0000000..4247468
 +    for (;;) std::this_thread::sleep_for(std::chrono::seconds(1));
 +  }
 +  if (TestSpinVdSwapOnce()) {
-+    wwe2k14_freeze_test_spin();
++    wwe2k16_freeze_test_spin();
 +  }
 +  g_last_vdswap_ns.store(NowNs(), std::memory_order_release);
 +  g_vdswap_count.fetch_add(1, std::memory_order_relaxed);
@@ -6032,15 +6032,15 @@ index 0000000..4247468
 +  PushEvent(type, handle, object_type, name);
 +}
 +
-+// Test hook for the GitHub #21/#25 shape: WWE2K14_FREEZE_TEST_STALL=<seconds>
++// Test hook for the GitHub #21/#25 shape: WWE2K16_FREEZE_TEST_STALL=<seconds>
 +// parks the first guest thread that enters a kernel wait after that delay
 +// (never the VdSwap/present threads) forever, so presents continue while that
 +// thread is stuck. The exit snapshot must then name it.
-+// WWE2K14_FREEZE_TEST_STALL_ON=<substring> restricts it to a wait object whose
++// WWE2K16_FREEZE_TEST_STALL_ON=<substring> restricts it to a wait object whose
 +// name contains that text (e.g. the file loader's event, as in GitHub #25).
 +bool TestStallWaitOnce(const char* wait_name) {
 +  static const uint64_t delay_ns = []() -> uint64_t {
-+    const char* value = std::getenv("WWE2K14_FREEZE_TEST_STALL");
++    const char* value = std::getenv("WWE2K16_FREEZE_TEST_STALL");
 +    if (!value || !*value) return uint64_t(0);
 +    char* end = nullptr;
 +    const long seconds = std::strtol(value, &end, 10);
@@ -6051,7 +6051,7 @@ index 0000000..4247468
 +  static std::atomic<bool> triggered{false};
 +  if (triggered.load(std::memory_order_relaxed)) return false;
 +  if (NowNs() - g_start_ns < delay_ns) return false;
-+  static const char* only_on = std::getenv("WWE2K14_FREEZE_TEST_STALL_ON");
++  static const char* only_on = std::getenv("WWE2K16_FREEZE_TEST_STALL_ON");
 +  if (only_on && *only_on && (!wait_name || !std::strstr(wait_name, only_on))) return false;
 +  const uint32_t tid = rex::thread::current_thread_system_id();
 +  if (tid == g_last_vdswap_host_tid.load(std::memory_order_relaxed) ||
@@ -6174,7 +6174,7 @@ index 0000000..4247468
 +  std::lock_guard<std::mutex> lock(g_lifecycle);
 +  if (g_started.load(std::memory_order_acquire)) return;
 +  g_started.store(true, std::memory_order_release);
-+  const char* disable = std::getenv("WWE2K14_FREEZE_LOG");
++  const char* disable = std::getenv("WWE2K16_FREEZE_LOG");
 +  const char* disable_generic = std::getenv("REX_FREEZE_LOG_DISABLE");
 +  const bool disabled = (disable && std::strcmp(disable, "0") == 0) ||
 +                        (disable_generic && std::strcmp(disable_generic, "1") == 0);
@@ -6867,7 +6867,7 @@ index 0000000..5665f6b
 +        const char* value = std::getenv(name);
 +        return value != nullptr && std::string_view(value) == "1";
 +      };
-+      return is_one("WWE2K14_RATE_CENSUS");
++      return is_one("WWE2K16_RATE_CENSUS");
 +    }();
 +    if (!env_enabled) {
 +      return;
@@ -6876,8 +6876,8 @@ index 0000000..5665f6b
 +    vblank_interval_ticks_ = vblank_interval_ticks;
 +    refresh_rate_hz_ = refresh_rate_hz;
 +    {
-+      const char* sample = std::getenv("WWE2K14_LOCK_OWNER_SAMPLE");
-+      const char* profile = std::getenv("WWE2K14_THREAD_PROFILE");
++      const char* sample = std::getenv("WWE2K16_LOCK_OWNER_SAMPLE");
++      const char* profile = std::getenv("WWE2K16_THREAD_PROFILE");
 +      // SIGPROF is only safe to send when the thread profiler installed its handler.
 +      owner_sampling_ = sample && std::string_view(sample) == "1" && profile && *profile;
 +    }
@@ -7909,7 +7909,7 @@ index b83fc1c..6ad2fb0 100644
  }  // namespace rex::filesystem
  
 -// TODO: CONSOLE APP - XE_DEFINE_CONSOLE_APP("xenia-vfs-dump", rex::filesystem::vfs_dump_main,
-+// TODO: CONSOLE APP - XE_DEFINE_CONSOLE_APP("wwe2k14-vfs-dump", rex::filesystem::vfs_dump_main,
++// TODO: CONSOLE APP - XE_DEFINE_CONSOLE_APP("wwe2k16-vfs-dump", rex::filesystem::vfs_dump_main,
  //                       "[source] [dump_path]", "source", "dump_path");
 diff --git a/src/filesystem/virtual_file_system.cpp b/src/filesystem/virtual_file_system.cpp
 index 8533222..67abd1f 100644
@@ -8126,7 +8126,7 @@ index 60efcd3..196c2df 100644
 -    uint32_t target_index = write_one_reg ? base_index : base_index + m;
 -    WriteRegister(target_index, reg_data);
 +  static const bool type0_bulk_enabled = [] {
-+    const char* value = std::getenv("WWE2K14_TYPE0_BULK");
++    const char* value = std::getenv("WWE2K16_TYPE0_BULK");
 +    return value == nullptr || std::strcmp(value, "0") != 0;
 +  }();
 +  if (!write_one_reg && type0_bulk_enabled) {
@@ -8233,7 +8233,7 @@ index 60efcd3..196c2df 100644
        REXGPU_ERROR(
            "{}: Using immediate vertex indices, which are not supported yet. "
 -          "Report the game to Xenia developers!",
-+          "Report the game to the WWE 2K14 PC port!",
++          "Report the game to the WWE 2K16 PC port!",
            opcode_name, uint32_t(vgt_draw_initiator.source_select));
        draw_succeeded = false;
        assert_always();
@@ -8242,14 +8242,14 @@ index 60efcd3..196c2df 100644
      auto viz_query = register_file_->Get<reg::PA_SC_VIZ_QUERY>();
      if (!(viz_query.viz_query_ena && viz_query.kill_pix_post_hi_z)) {
 +      const Shader* const pixel_shader = active_pixel_shader();
-+      if (REXCVAR_GET(wwe2k14_dof_composite_nop) &&
++      if (REXCVAR_GET(wwe2k16_dof_composite_nop) &&
 +          register_file_->Get<reg::RB_MODECONTROL>().edram_mode == EdramMode::kColorDepth &&
 +          pixel_shader != nullptr &&
 +          pixel_shader->ucode_data_hash() == UINT64_C(0x1233F68C15FDF948)) {
 +        static std::atomic_flag logged_dof_composite_skip = ATOMIC_FLAG_INIT;
 +        if (!logged_dof_composite_skip.test_and_set(std::memory_order_relaxed)) {
 +          REXGPU_INFO(
-+              "[wwe2k14-dof] skipped depth-of-field composite PS hash={:016X} (explicit CVar)",
++              "[wwe2k16-dof] skipped depth-of-field composite PS hash={:016X} (explicit CVar)",
 +              pixel_shader->ucode_data_hash());
 +        }
 +        return true;
@@ -8379,7 +8379,7 @@ index a856cf5..7db5895 100644
    shader_out.resize(rdef_position_dwords + sizeof(dxbc::RdefHeader) / sizeof(uint32_t));
    // Generator name.
 -  dxbc::AppendAlignedString(shader_out, "Xenia");
-+  dxbc::AppendAlignedString(shader_out, "WWE2K14");
++  dxbc::AppendAlignedString(shader_out, "WWE2K16");
    {
      auto& rdef_header =
          *reinterpret_cast<dxbc::RdefHeader*>(shader_out.data() + rdef_position_dwords);
@@ -8521,7 +8521,7 @@ index 8e269c4..4cdb457 100644
    built_shader_.resize(rdef_position_dwords + sizeof(dxbc::RdefHeader) / sizeof(uint32_t));
    // Generator name.
 -  dxbc::AppendAlignedString(built_shader_, "Xenia");
-+  dxbc::AppendAlignedString(built_shader_, "WWE2K14");
++  dxbc::AppendAlignedString(built_shader_, "WWE2K16");
  
    // Constant types - uint (aka "dword" when it's scalar) only.
    // Names.
@@ -8548,7 +8548,7 @@ index 8e269c4..4cdb457 100644
    built_shader_.resize(rdef_position_dwords + sizeof(dxbc::RdefHeader) / sizeof(uint32_t));
    // Generator name.
 -  dxbc::AppendAlignedString(built_shader_, "Xenia");
-+  dxbc::AppendAlignedString(built_shader_, "WWE2K14");
++  dxbc::AppendAlignedString(built_shader_, "WWE2K16");
  
    // Constant types - uint (aka "dword" when it's scalar) only.
    // Names.
@@ -8583,7 +8583,7 @@ index e2983a4..e9a0d9e 100644
                      "Allow invalid fetch constants");
 +REXCVAR_DEFINE_BOOL(gpu_content_probe, false, "GPU",
 +                    "Per-second content probe for H-a/H-b/H-c diagnostics");
-+REXCVAR_DEFINE_BOOL(wwe2k14_dof_composite_nop, false, "GPU",
++REXCVAR_DEFINE_BOOL(wwe2k16_dof_composite_nop, false, "GPU",
 +                    "Skip the depth-of-field composite draw when explicitly selected");
 +REXCVAR_DEFINE_INT32(edram_tiles, 2048, "GPU",
 +                     "Emulated EDRAM tile count (2048 default; 4096 opt-in 20 MiB mode)")
@@ -8809,10 +8809,10 @@ index 3706e38..756fc90 100644
 -  rex::FatalError("Graphics device lost (probably due to an internal error)");
 +  std::string log_path = rex::GetLogFilePath();
 +  if (log_path.empty()) {
-+    log_path = rex::path_to_utf8(rex::filesystem::GetExecutableFolder() / "wwe2k14.log");
++    log_path = rex::path_to_utf8(rex::filesystem::GetExecutableFolder() / "wwe2k16.log");
 +  }
 +  const std::string message =
-+      "The graphics driver stopped responding, so WWE 2K14 must close.\n\n"
++      "The graphics driver stopped responding, so WWE 2K16 must close.\n\n"
 +      "Please update your graphics driver. If you use Intel graphics, download the driver from "
 +      "Intel's website, not Windows Update.\n\n"
 +      "Please attach this log to your bug report:\n" +
@@ -8826,7 +8826,7 @@ index 3706e38..756fc90 100644
 +  // soon as the user dismisses the dialog rather than allowing a second crash.
 +  if (app_context_) {
 +    app_context_->CallInUIThreadSynchronous([this, &message] {
-+      if (!app_context_->ShowSimpleMessageBox("WWE 2K14", message.c_str())) {
++      if (!app_context_->ShowSimpleMessageBox("WWE 2K16", message.c_str())) {
 +        REXLOG_ERROR("Could not display the fatal GPU message box");
 +      }
 +      rex::FlushLogging();
@@ -9386,7 +9386,7 @@ index 2c31a0e..bbfcfdc 100644
    shader_object_.resize(shader_object_.size() + sizeof(dxbc::RdefHeader) / sizeof(uint32_t));
    // Generator name.
 -  dxbc::AppendAlignedString(shader_object_, "Xenia");
-+  dxbc::AppendAlignedString(shader_object_, "WWE2K14");
++  dxbc::AppendAlignedString(shader_object_, "WWE2K16");
  
    // ***************************************************************************
    // Constant types
@@ -9870,9 +9870,9 @@ index bef2db1..5b323d8 100644
    texture.MakeUpToDateAndWatch(global_critical_region_.Acquire());
    texture.LogAction("Loaded");
  
-+  // Diagnostic (WWE2K14_GPU_STATS=1): every 5 s, how many textures were (re)loaded and which ones most often.
++  // Diagnostic (WWE2K16_GPU_STATS=1): every 5 s, how many textures were (re)loaded and which ones most often.
 +  static const bool gpu_stats = [] {
-+    const char* v = std::getenv("WWE2K14_GPU_STATS");
++    const char* v = std::getenv("WWE2K16_GPU_STATS");
 +    return v && v[0] == '1';
 +  }();
 +  if (gpu_stats) {
@@ -10019,7 +10019,7 @@ index bef2db1..5b323d8 100644
      if (width_minus_1 >= xenos::kTexture2DCubeMaxWidthHeight) {
        REXGPU_ERROR(
 -          "1D texture is too wide ({}) - ignoring! Report the game to Xenia "
-+          "1D texture is too wide ({}) - ignoring! Report the game to the WWE 2K14 PC port "
++          "1D texture is too wide ({}) - ignoring! Report the game to the WWE 2K16 PC port "
            "developers",
            width_minus_1 + 1);
        is_invalid_1d = true;
@@ -10028,7 +10028,7 @@ index bef2db1..5b323d8 100644
        REXGPU_ERROR(
            "1D texture has tiling enabled in the fetch constant, but this "
 -          "appears to be completely wrong - ignoring! Report the game to Xenia "
-+          "appears to be completely wrong - ignoring! Report the game to the WWE 2K14 PC port "
++          "appears to be completely wrong - ignoring! Report the game to the WWE 2K16 PC port "
            "developers");
        is_invalid_1d = true;
      }
@@ -10037,7 +10037,7 @@ index bef2db1..5b323d8 100644
        REXGPU_ERROR(
            "1D texture has packed mips enabled in the fetch constant, but this "
 -          "appears to be completely wrong - ignoring! Report the game to Xenia "
-+          "appears to be completely wrong - ignoring! Report the game to the WWE 2K14 PC port "
++          "appears to be completely wrong - ignoring! Report the game to the WWE 2K16 PC port "
            "developers");
        is_invalid_1d = true;
      }
@@ -10073,7 +10073,7 @@ index 19ee54a..4ff8f2e 100644
        REXGPU_ERROR(
            "Primitive processor: Unsupported tessellation mode {} for primitive "
 -          "type {}. Report the game to Xenia developers!",
-+          "type {}. Report the game to the WWE 2K14 PC port!",
++          "type {}. Report the game to the WWE 2K16 PC port!",
            uint32_t(tessellation_mode), uint32_t(guest_primitive_type));
        assert_always();
        return false;
@@ -10091,7 +10091,7 @@ index 19ee54a..4ff8f2e 100644
          "buffer only containing {}. Should be fetching zero indices instead of "
          "overflowing ones, but this is a rare situation, so not handled yet. "
 -        "Report the game to Xenia developers!",
-+        "Report the game to the WWE 2K14 PC port!",
++        "Report the game to the WWE 2K16 PC port!",
          guest_draw_vertex_count, static_cast<uint32_t>(vgt_dma_size.num_words));
      guest_draw_vertex_count = vgt_dma_size.num_words;
    }
@@ -10314,7 +10314,7 @@ index c76b477..7e67e27 100644
    // Main display window.
    assert_true(app_context().IsInUIThread());
 -  window_ = rex::ui::Window::Create(app_context(), "xenia-gpu-trace-viewer", 1920, 1080);
-+  window_ = rex::ui::Window::Create(app_context(), "wwe2k14-gpu-trace-viewer", 1920, 1080);
++  window_ = rex::ui::Window::Create(app_context(), "wwe2k16-gpu-trace-viewer", 1920, 1080);
    window_->AddListener(&window_listener_);
    window_->AddInputListener(&window_listener_, kZOrderTraceViewerInput);
    if (!window_->Open()) {
@@ -10323,7 +10323,7 @@ index c76b477..7e67e27 100644
  
  bool TraceViewer::Load(const std::string_view trace_file_path) {
 -  window_->SetTitle("Xenia GPU Trace Viewer: " + std::string(trace_file_path));
-+  window_->SetTitle("WWE 2K14 GPU Trace Viewer: " + std::string(trace_file_path));
++  window_->SetTitle("WWE 2K16 GPU Trace Viewer: " + std::string(trace_file_path));
  
    if (!player_->Open(trace_file_path)) {
      REXGPU_ERROR("Could not load trace file");
@@ -10685,7 +10685,7 @@ index f191b02..eade39c 100644
        rb_copy_control.copy_command != xenos::CopyCommand::kConvert) {
      REXGPU_ERROR(
 -        "Unsupported resolve copy command {}. Report the game to Xenia "
-+        "Unsupported resolve copy command {}. Report the game to the WWE 2K14 PC port "
++        "Unsupported resolve copy command {}. Report the game to the WWE 2K16 PC port "
          "developers",
          uint32_t(rb_copy_control.copy_command));
      assert_always();
@@ -10956,7 +10956,7 @@ index f191b02..eade39c 100644
        REXGPU_WARN(
            "Resolving to format {}, which is untested - treating like {}. "
 -          "Report the game to Xenia developers!",
-+          "Report the game to the WWE 2K14 PC port!",
++          "Report the game to the WWE 2K16 PC port!",
            FormatInfo::Get(dest_format)->name, FormatInfo::Get(dest_closest_format)->name);
      }
    }
@@ -11041,7 +11041,7 @@ index a40436e..a92a5b3 100644
 +                      "render_target, or memory (shared-memory watches, primitive cache, "
 +                      "vertex residency)")
 +    .allowed({"", "texture", "descriptors", "render_target", "memory"});
-+REXCVAR_DEFINE_STRING(wwe2k14_ui_c0_remap, "", "GPU/Vulkan",
++REXCVAR_DEFINE_STRING(wwe2k16_ui_c0_remap, "", "GPU/Vulkan",
 +                      "Default-off per-draw UI vertex c0 remap set by the app's internal resolution selection");
 +REXCVAR_DEFINE_INT32(debug_periodic_cache_clear_frames, 30, "GPU/Vulkan",
 +                     "Frame period for debug_periodic_cache_clear");
@@ -11055,7 +11055,7 @@ index a40436e..a92a5b3 100644
  
 +bool TextureDescriptorSetReuseEnabled() {
 +  static const bool enabled = [] {
-+    const char* value = std::getenv("WWE2K14_DESC_REUSE");
++    const char* value = std::getenv("WWE2K16_DESC_REUSE");
 +    return value == nullptr || std::string_view(value) != "0";
 +  }();
 +  return enabled;
@@ -11063,7 +11063,7 @@ index a40436e..a92a5b3 100644
 +
 +bool AsyncSubmissionEnabled() {
 +  static const bool enabled = [] {
-+    const char* value = std::getenv("WWE2K14_ASYNC_SUBMIT");
++    const char* value = std::getenv("WWE2K16_ASYNC_SUBMIT");
 +    return value == nullptr || std::string_view(value) != "0";
 +  }();
 +  return enabled;
@@ -11202,9 +11202,9 @@ index a40436e..a92a5b3 100644
 +const UiC0RemapConfig& GetUiC0RemapConfig() {
 +  static const UiC0RemapConfig config = [] {
 +    UiC0RemapConfig result;
-+    const std::string setting = REXCVAR_GET(wwe2k14_ui_c0_remap);
++    const std::string setting = REXCVAR_GET(wwe2k16_ui_c0_remap);
 +    if (setting.empty()) {
-+      REXGPU_INFO("[wwe2k14-ui-c0-remap] inactive (SDK cvar is empty)");
++      REXGPU_INFO("[wwe2k16-ui-c0-remap] inactive (SDK cvar is empty)");
 +      return result;
 +    }
 +
@@ -11213,7 +11213,7 @@ index a40436e..a92a5b3 100644
 +    for (size_t i = 0; i + 1 < fields.size(); ++i) {
 +      const size_t separator = remaining.find(':');
 +      if (separator == std::string_view::npos) {
-+        REXGPU_WARN("[wwe2k14-ui-c0-remap] invalid configuration; remap remains inactive");
++        REXGPU_WARN("[wwe2k16-ui-c0-remap] invalid configuration; remap remains inactive");
 +        return result;
 +      }
 +      fields[i] = remaining.substr(0, separator);
@@ -11226,21 +11226,21 @@ index a40436e..a92a5b3 100644
 +        !ParseUiC0RemapHex(fields[2], from_y) || !ParseUiC0RemapHex(fields[3], to_x) ||
 +        !ParseUiC0RemapHex(fields[4], to_y) || from_x > UINT32_MAX || from_y > UINT32_MAX ||
 +        to_x > UINT32_MAX || to_y > UINT32_MAX) {
-+      REXGPU_WARN("[wwe2k14-ui-c0-remap] invalid configuration; remap remains inactive");
++      REXGPU_WARN("[wwe2k16-ui-c0-remap] invalid configuration; remap remains inactive");
 +      return result;
 +    }
 +
 +    std::string_view hashes = fields[5];
 +    while (!hashes.empty()) {
 +      if (result.vertex_shader_hash_count == result.vertex_shader_hashes.size()) {
-+        REXGPU_WARN("[wwe2k14-ui-c0-remap] too many shader hashes; remap remains inactive");
++        REXGPU_WARN("[wwe2k16-ui-c0-remap] too many shader hashes; remap remains inactive");
 +        return UiC0RemapConfig{};
 +      }
 +      const size_t separator = hashes.find(',');
 +      const std::string_view hash_text = hashes.substr(0, separator);
 +      uint64_t hash = 0;
 +      if (!ParseUiC0RemapHex(hash_text, hash) || hash == 0) {
-+        REXGPU_WARN("[wwe2k14-ui-c0-remap] invalid shader hash; remap remains inactive");
++        REXGPU_WARN("[wwe2k16-ui-c0-remap] invalid shader hash; remap remains inactive");
 +        return UiC0RemapConfig{};
 +      }
 +      result.vertex_shader_hashes[result.vertex_shader_hash_count++] = hash;
@@ -11251,7 +11251,7 @@ index a40436e..a92a5b3 100644
 +      }
 +    }
 +    if (result.vertex_shader_hash_count == 0) {
-+      REXGPU_WARN("[wwe2k14-ui-c0-remap] no shader hashes; remap remains inactive");
++      REXGPU_WARN("[wwe2k16-ui-c0-remap] no shader hashes; remap remains inactive");
 +      return UiC0RemapConfig{};
 +    }
 +
@@ -11261,13 +11261,13 @@ index a40436e..a92a5b3 100644
 +    result.to_y = static_cast<uint32_t>(to_y);
 +    if (!DecodeUiC0SceneExtent(result.from_x, result.scene_width) ||
 +        !DecodeUiC0SceneExtent(result.from_y, result.scene_height)) {
-+      REXGPU_WARN("[wwe2k14-ui-c0-remap] invalid source c0 extents; remap remains inactive");
++      REXGPU_WARN("[wwe2k16-ui-c0-remap] invalid source c0 extents; remap remains inactive");
 +      return UiC0RemapConfig{};
 +    }
 +    result.enabled = true;
 +    // One line reports the exact active from/to pair and all stable shader
 +    // hashes. The string is the startup-supplied v1 configuration.
-+    REXGPU_INFO("[wwe2k14-ui-c0-remap] active config='{}'", setting);
++    REXGPU_INFO("[wwe2k16-ui-c0-remap] active config='{}'", setting);
 +    return result;
 +  }();
 +  return config;
@@ -11952,9 +11952,9 @@ index a40436e..a92a5b3 100644
 +                         regs[XE_GPU_REG_SHADER_CONSTANT_000_X + 1], ui_c0_target_x,
 +                         ui_c0_target_y) &&
 +      !UiC0DrawSamplesSceneSizedTexture(GetUiC0RemapConfig(), regs);
-+  // WWE2K14_UI_C0_LOG=1: log each distinct (UI vertex shader, fetch-0 texture size, remapped?) once, to
++  // WWE2K16_UI_C0_LOG=1: log each distinct (UI vertex shader, fetch-0 texture size, remapped?) once, to
 +  // see which full-screen copies/fades the remap shrinks at a given internal resolution.
-+  static const bool ui_c0_log = std::getenv("WWE2K14_UI_C0_LOG") != nullptr;
++  static const bool ui_c0_log = std::getenv("WWE2K16_UI_C0_LOG") != nullptr;
 +  if (ui_c0_log && (float_constant_map_vertex.float_bitmap[0] & UINT64_C(1)) != 0) {
 +    uint32_t probe_x = 0;
 +    uint32_t probe_y = 0;
@@ -11969,7 +11969,7 @@ index a40436e..a92a5b3 100644
 +      const uint32_t base = (fetch0 & 3) == 2 ? (regs[XE_GPU_REG_SHADER_CONSTANT_FETCH_00_0 + 1] & 0xFFFFF000) : 0;
 +      if (seen.size() < 256 &&
 +          seen.emplace(vertex_shader->ucode_data_hash(), fw, fh, fetch0 & 3, ui_c0_remap_this_draw).second) {
-+        REXGPU_INFO("[wwe2k14-ui-c0-log] vs={:016X} fetch0_type={} tex={}x{} base={:08X} c0=({:08X},{:08X}) "
++        REXGPU_INFO("[wwe2k16-ui-c0-log] vs={:016X} fetch0_type={} tex={}x{} base={:08X} c0=({:08X},{:08X}) "
 +                    "viewport_scissor_from_regs remapped={}",
 +                    vertex_shader->ucode_data_hash(), fetch0 & 3, fw, fh, base,
 +                    regs[XE_GPU_REG_SHADER_CONSTANT_000_X], regs[XE_GPU_REG_SHADER_CONSTANT_000_X + 1],
@@ -12248,9 +12248,9 @@ index a40436e..a92a5b3 100644
 +    bool result = render_target_cache_->Resolve(*memory_, *shared_memory_, *texture_cache_,
 +                                                written_address, written_length);
 +    LogResolveDiagnostic(written_address, written_length);
-+    // Diagnostic (WWE2K14_READWATCH_MIN=bytes): find the guest code that reads large resolves.
++    // Diagnostic (WWE2K16_READWATCH_MIN=bytes): find the guest code that reads large resolves.
 +    static const uint32_t read_watch_min = [] {
-+      const char* v = std::getenv("WWE2K14_READWATCH_MIN");
++      const char* v = std::getenv("WWE2K16_READWATCH_MIN");
 +      return v ? uint32_t(std::strtoul(v, nullptr, 10)) : 0u;
 +    }();
 +    if (read_watch_min && written_length >= read_watch_min) {
@@ -12262,12 +12262,12 @@ index a40436e..a92a5b3 100644
    return IssueCopy_ReadbackResolvePath();
  }
  
-+// Diagnostic (WWE2K14_RESOLVE_LOG=1): one line per resolve with its destination and format, to
++// Diagnostic (WWE2K16_RESOLVE_LOG=1): one line per resolve with its destination and format, to
 +// tell per-frame render-to-texture resolves from ones the CPU consumes.
 +void VulkanCommandProcessor::LogResolveDiagnostic(uint32_t written_address,
 +                                                  uint32_t written_length) {
 +  static const bool enabled = [] {
-+    const char* v = std::getenv("WWE2K14_RESOLVE_LOG");
++    const char* v = std::getenv("WWE2K16_RESOLVE_LOG");
 +    return v && v[0] == '1';
 +  }();
 +  if (!enabled || !written_length) {
@@ -12300,10 +12300,10 @@ index a40436e..a92a5b3 100644
    }
  
 -  if (!memory_->TranslatePhysical(written_address)) {
-+  // Diagnostic (WWE2K14_READBACK_RANGE=lo-hi, hex physical addresses): read back only resolves
++  // Diagnostic (WWE2K16_READBACK_RANGE=lo-hi, hex physical addresses): read back only resolves
 +  // whose destination intersects [lo, hi), to find which resolves the CPU consumes.
 +  static const std::pair<uint32_t, uint32_t> readback_range = [] {
-+    const char* v = std::getenv("WWE2K14_READBACK_RANGE");
++    const char* v = std::getenv("WWE2K16_READBACK_RANGE");
 +    if (!v) return std::pair<uint32_t, uint32_t>(0, UINT32_MAX);
 +    char* end = nullptr;
 +    uint32_t lo = uint32_t(std::strtoul(v, &end, 16));
@@ -13365,7 +13365,7 @@ index a40436e..a92a5b3 100644
 +        draw_counts += fmt::format("{:016X}:{}", config.vertex_shader_hashes[i],
 +                                   ui_c0_remap_trace_draw_counts_[i]);
 +      }
-+      REXGPU_INFO("[wwe2k14-ui-c0-remap] single-frame trace effective remap counts={}",
++      REXGPU_INFO("[wwe2k16-ui-c0-remap] single-frame trace effective remap counts={}",
 +                  draw_counts);
 +    }
 +    ui_c0_remap_trace_counting_ = false;
@@ -13734,7 +13734,7 @@ index 0000000..524935f
 +
 +bool GpuTiming::Requested() {
 +  static const bool requested = [] {
-+    const char* value = std::getenv("WWE2K14_GPU_TIMING");
++    const char* value = std::getenv("WWE2K16_GPU_TIMING");
 +    return value != nullptr && std::string_view(value) == "1";
 +  }();
 +  return requested;
@@ -15005,9 +15005,9 @@ index 05d1e5c..4a36c04 100644
  }
  
  RenderTargetCache::RenderTarget* VulkanRenderTargetCache::CreateRenderTarget(RenderTargetKey key) {
-+  // Diagnostic (WWE2K14_GPU_STATS=1): every host render target created, with its MSAA sample count.
++  // Diagnostic (WWE2K16_GPU_STATS=1): every host render target created, with its MSAA sample count.
 +  static const bool gpu_stats = [] {
-+    const char* v = std::getenv("WWE2K14_GPU_STATS");
++    const char* v = std::getenv("WWE2K16_GPU_STATS");
 +    return v && v[0] == '1';
 +  }();
 +  if (gpu_stats) {
@@ -16545,7 +16545,7 @@ index a5e9088..e092d6a 100644
        assert_zero(args->unk_ptr);
 -      REXKRNL_ERROR("XMPGetInfo?({:08X}, {:08X})", uint32_t(args->unk_ptr),
 -                    uint32_t(args->info_ptr));
-+      // Layout (guest caller sub_82CBBA00, generated/wwe2k14_recomp.89.cpp:47214):
++      // Layout (guest caller sub_82CBBA00, generated/wwe2k16_recomp.89.cpp:47214):
 +      // {client, 0, info_ptr}. The playlist path below writes the handle at
 +      // +0 and the string fields at +4+572; mirror that for the custom song.
 +      if (active_custom_song_.song) {
@@ -16579,9 +16579,9 @@ index a5e9088..e092d6a 100644
        assert_true(args->xmp_client == 0x00000002);
        REXKRNL_DEBUG("XMPGetPlaybackController({:08X}, {:08X}, {:08X})", uint32_t(args->xmp_client),
                      uint32_t(args->controller_ptr), uint32_t(args->locked_ptr));
-+      // Default (the runtime): report (0, 0). The XDK's XMPTitleHasPlaybackControl (WWE 2K14:
++      // Default (the runtime): report (0, 0). The XDK's XMPTitleHasPlaybackControl (WWE 2K16:
 +      // sub_82E1A998) answers "the title has playback control" only when both words are 0;
-+      // WWE 2K14 takes control with XMPSetPlaybackController(client 1), so echoing that 1 back
++      // WWE 2K16 takes control with XMPSetPlaybackController(client 1), so echoing that 1 back
 +      // as `locked` made Wwise think the player's own music was playing and mute its background
 +      // music bus: no menu soundtrack and no licensed entrance themes.
 +      // xmp_report_playback_client=true reports the stored client instead, for titles that poll
@@ -17952,7 +17952,7 @@ index db31f40..bf359bd 100644
 +  // 0x10..0x1C and continue. Evidence: cycle-16 m11 capture
 +  // (logs/cycle16-m11-attribution.txt), guest thid 10 (host tid 578675),
 +  // RIP offset 0x4554d3 `movbe 0x18(%rbx),%eax` with rbx=0, ctx.r3=0,
-+  // ctx.lr=0x82b20dfc (generated/wwe2k14_recomp.74.cpp:37049 calls
++  // ctx.lr=0x82b20dfc (generated/wwe2k16_recomp.74.cpp:37049 calls
 +  // RtlEnterCriticalSection with r3=0). Leave shares the same null source;
 +  // only Enter is guarded this cycle (see docs/CRASH_LOG.md cycle 16).
 +  if (!cs) {
@@ -17982,7 +17982,7 @@ index db31f40..bf359bd 100644
 +  // RIP offset 0x527bb35 `movbe 0x14(%rsi),%eax` with rsi=0 -- the Leave body
 +  // is inlined into its HostToGuestFunction trampoline, so the faulting ELF
 +  // symbol is that trampoline rather than the out-of-line body at 0x4556f0 --
-+  // ctx.r3=0, ctx.lr=0x82b20e1c (generated/wwe2k14_recomp.74.cpp:37064 calls
++  // ctx.r3=0, ctx.lr=0x82b20e1c (generated/wwe2k16_recomp.74.cpp:37064 calls
 +  // RtlLeaveCriticalSection with r3=0). Enter's cycle-16 guard is unchanged.
 +  if (!cs) {
 +    static volatile uint32_t null_cs_count = 0;
@@ -18021,13 +18021,13 @@ index 5397189..5f1df99 100644
  using rex::runtime::current_ppc_context;
 +namespace freeze_logger = rex::diagnostics::freeze_logger;
 +
-+// Opt-in kernel event trace (WWE2K14_EVT_TRACE=1). Off by default: used to
++// Opt-in kernel event trace (WWE2K16_EVT_TRACE=1). Off by default: used to
 +// capture the set/clear/wait order of the Havok-cloth handshake events
 +// (StartCloth/EndCloth) and any other named event during an entrance hang.
 +namespace {
 +bool EvtTraceEnabled() {
 +  static const bool enabled = [] {
-+    const char* value = std::getenv("WWE2K14_EVT_TRACE");
++    const char* value = std::getenv("WWE2K16_EVT_TRACE");
 +    return value != nullptr && std::strcmp(value, "1") == 0;
 +  }();
 +  return enabled;
@@ -19311,9 +19311,9 @@ index b0971cb..52f91fa 100644
                    buffer_length),
                size_t(byte_offset), &bytes_read);
            if (XSUCCEEDED(result)) {
-+            // Diagnostic (WWE2K14_READ_AUDIT=<substring>): log reads of matching paths with an
++            // Diagnostic (WWE2K16_READ_AUDIT=<substring>): log reads of matching paths with an
 +            // FNV-1a hash of the delivered bytes, for offline comparison with the host file.
-+            static const char* read_audit = std::getenv("WWE2K14_READ_AUDIT");
++            static const char* read_audit = std::getenv("WWE2K16_READ_AUDIT");
 +            if (read_audit && path().find(read_audit) != std::string::npos) {
 +              const uint8_t* p = buffer_physical_heap
 +                                     ? memory()->TranslatePhysical(
@@ -19399,7 +19399,7 @@ index aa0b088..ea173a3 100644
 +    return;
 +  }
 +
-+  const char* continue_on_missing = std::getenv("WWE2K14_MISSING_FN_CONTINUE");
++  const char* continue_on_missing = std::getenv("WWE2K16_MISSING_FN_CONTINUE");
 +  if (continue_on_missing && std::strcmp(continue_on_missing, "1") == 0) {
 +    return;
 +  }
@@ -19419,7 +19419,7 @@ index aa0b088..ea173a3 100644
  
  bool Memory::Initialize() {
 -  file_name_ = fmt::format("xenia_memory_{}", chrono::Clock::QueryHostTickCount());
-+  file_name_ = fmt::format("wwe2k14_memory_{}", chrono::Clock::QueryHostTickCount());
++  file_name_ = fmt::format("wwe2k16_memory_{}", chrono::Clock::QueryHostTickCount());
  
    // Create main page file-backed mapping. This is all reserved but
    // uncommitted (so it shouldn't expand page file).
@@ -21041,7 +21041,7 @@ index 9eeb902..132b33d 100644
 +  VkPhysicalDeviceProperties selected_properties = {};
 +  ifn.vkGetPhysicalDeviceProperties(provider->vulkan_device_->physical_device(),
 +                                    &selected_properties);
-+  REXLOG_INFO("[wwe2k14-profile:gpu] Selected Vulkan physical device: {} (type: {}, "
++  REXLOG_INFO("[wwe2k16-profile:gpu] Selected Vulkan physical device: {} (type: {}, "
 +              "id: {:04X}:{:04X}, driver version: 0x{:X})",
 +              selected_properties.deviceName,
 +              PhysicalDeviceTypeName(selected_properties.deviceType),
@@ -21467,7 +21467,7 @@ index 2106800..2d4fc39 100644
 +                     const VkFence fence) {
 +#if !defined(NDEBUG) || defined(REXGLUE_VULKAN_FAILURE_TEST)
 +  static const uint64_t fail_on_submit = [] {
-+    const char* const value = std::getenv("WWE2K14_TEST_VULKAN_DEVICE_LOST_SUBMIT_N");
++    const char* const value = std::getenv("WWE2K16_TEST_VULKAN_DEVICE_LOST_SUBMIT_N");
 +    if (!value || !*value) {
 +      return uint64_t(0);
 +    }
@@ -21479,7 +21479,7 @@ index 2106800..2d4fc39 100644
 +  const uint64_t ordinal =
 +      submit_count_for_testing.fetch_add(1, std::memory_order_relaxed) + 1;
 +  if (fail_on_submit && ordinal == fail_on_submit) {
-+    REXLOG_WARN("WWE2K14_TEST_VULKAN_DEVICE_LOST_SUBMIT_N injected VK_ERROR_DEVICE_LOST at submit {}",
++    REXLOG_WARN("WWE2K16_TEST_VULKAN_DEVICE_LOST_SUBMIT_N injected VK_ERROR_DEVICE_LOST at submit {}",
 +                ordinal);
 +    return VK_ERROR_DEVICE_LOST;
 +  }
@@ -22027,7 +22027,7 @@ index d18820d..f4986bd 100644
 +    return false;
 +  }
 +  return MessageBoxW(nullptr, wide_message.c_str(),
-+                     wide_title.empty() ? L"WWE 2K14" : wide_title.c_str(),
++                     wide_title.empty() ? L"WWE 2K16" : wide_title.c_str(),
 +                     MB_OK | MB_ICONERROR | MB_TASKMODAL) != 0;
 +}
 +
@@ -22067,7 +22067,7 @@ index ea122f0..c81c2ed 100644
 +  auto init_result = rex::cvar::Init(argc_post_gtk, argv_post_gtk);
 +  if (init_result.parse_error) {
 +    std::fprintf(stderr,
-+                 "WWE 2K14 could not start: invalid launch option: %s. Check your shortcut or launcher settings.\n",
++                 "WWE 2K16 could not start: invalid launch option: %s. Check your shortcut or launcher settings.\n",
 +                 init_result.parse_error->c_str());
 +    return EXIT_FAILURE;
 +  }
@@ -22108,10 +22108,10 @@ index 33092ba..6d6fd8a 100644
 -  auto remaining = rex::cvar::Init(static_cast<int>(argv_ptrs.size()), argv_ptrs.data());
 +  auto init_result = rex::cvar::Init(static_cast<int>(argv_ptrs.size()), argv_ptrs.data());
 +  if (init_result.parse_error) {
-+    std::string message = "WWE 2K14 could not start: invalid launch option: " +
++    std::string message = "WWE 2K16 could not start: invalid launch option: " +
 +                          *init_result.parse_error +
 +                          ". Check your shortcut or launcher settings.";
-+    MessageBoxA(nullptr, message.c_str(), "WWE 2K14", MB_OK | MB_ICONERROR);
++    MessageBoxA(nullptr, message.c_str(), "WWE 2K16", MB_OK | MB_ICONERROR);
 +    return EXIT_FAILURE;
 +  }
 +  if (init_result.exit_requested) {
@@ -24398,24 +24398,24 @@ index 0000000..f27784b
 +class ScopedContinueEnvironment {
 + public:
 +  ScopedContinueEnvironment() {
-+    if (const char* current = std::getenv("WWE2K14_MISSING_FN_CONTINUE")) {
++    if (const char* current = std::getenv("WWE2K16_MISSING_FN_CONTINUE")) {
 +      previous_ = current;
 +    }
 +#if defined(_WIN32)
-+    succeeded_ = _putenv_s("WWE2K14_MISSING_FN_CONTINUE", "1") == 0;
++    succeeded_ = _putenv_s("WWE2K16_MISSING_FN_CONTINUE", "1") == 0;
 +#else
-+    succeeded_ = setenv("WWE2K14_MISSING_FN_CONTINUE", "1", 1) == 0;
++    succeeded_ = setenv("WWE2K16_MISSING_FN_CONTINUE", "1", 1) == 0;
 +#endif
 +  }
 +
 +  ~ScopedContinueEnvironment() {
 +#if defined(_WIN32)
-+    _putenv_s("WWE2K14_MISSING_FN_CONTINUE", previous_ ? previous_->c_str() : "");
++    _putenv_s("WWE2K16_MISSING_FN_CONTINUE", previous_ ? previous_->c_str() : "");
 +#else
 +    if (previous_) {
-+      setenv("WWE2K14_MISSING_FN_CONTINUE", previous_->c_str(), 1);
++      setenv("WWE2K16_MISSING_FN_CONTINUE", previous_->c_str(), 1);
 +    } else {
-+      unsetenv("WWE2K14_MISSING_FN_CONTINUE");
++      unsetenv("WWE2K16_MISSING_FN_CONTINUE");
 +    }
 +#endif
 +  }

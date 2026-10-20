@@ -23,6 +23,7 @@ set(WWE2K16_SOURCES
     src/shadows.cpp
     src/cp_profiler.cpp
     src/exit_menu.cpp
+    src/display_refresh_rate.cpp
 )
 
 if(WIN32)
@@ -58,7 +59,7 @@ foreach(target IN LISTS WWE2K16_TARGETS)
 if(WIN32)
     enable_language(RC)
     target_sources(${target} PRIVATE res/wwe2k16.rc)
-    target_link_libraries(${target} PRIVATE windowscodecs ole32 shell32 winmm)
+    target_link_libraries(${target} PRIVATE windowscodecs ole32 shell32 winmm gdiplus)
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/res/achievement.ogg"
                 "$<TARGET_FILE_DIR:${target}>/achievement.ogg")

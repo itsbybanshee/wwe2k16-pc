@@ -26,6 +26,7 @@
 #include "achievement_sound.h"
 #include "achievement_toast.h"
 #include "disc_image.h"
+#include "display_refresh_rate.h"
 #include "fps_overlay.h"
 #include "launcher_settings.h"
 #include "screenshot.h"
@@ -236,9 +237,10 @@ class Wwe2k16App : public rex::ReXApp {
   void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
 #if defined(_WIN32)
     SetupWindowMode();
+    if (window()) display_refresh_rate_.SwitchTo60Hz(window()->GetNativeWindowHandle());
 #endif
     fps_overlay_.Attach(drawer);
-    achievement_toasts_.Attach(&app_context(), drawer);
+    achievement_toasts_.Attach(&app_context(), drawer, window()->GetNativeWindowHandle());
     achievement_toasts_.SetSound(
         wwe2k16::LoadOggAsWav(rex::filesystem::GetExecutableFolder() / "achievement.ogg"));
     rex::system::xam::SetAchievementUnlockedHandler([this](const rex::system::xam::AchievementInfo& a) {
@@ -261,6 +263,9 @@ class Wwe2k16App : public rex::ReXApp {
     rex::system::xam::SetAchievementUnlockedHandler(nullptr);
     achievement_toasts_.Detach();
 #if defined(_WIN32)
+    display_refresh_rate_.Restore();
+#endif
+#if defined(_WIN32)
     std::thread([] {
       Sleep(2000);
       _exit(0);
@@ -271,6 +276,7 @@ class Wwe2k16App : public rex::ReXApp {
  private:
   wwe2k16::AchievementToasts achievement_toasts_;
   wwe2k16::FpsOverlay fps_overlay_;
+  wwe2k16::DisplayRefreshRate display_refresh_rate_;
 
 #if defined(_WIN32)
   bool is_borderless_ = false;

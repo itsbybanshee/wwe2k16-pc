@@ -6,7 +6,7 @@ index 196c2df..29d1ea5 100644
        // TODO(Triang3l): VGT_IMMED_DATA.
        REXGPU_ERROR(
            "{}: Using immediate vertex indices, which are not supported yet. "
--          "Report the game to the WWE 2K14 PC port!",
+-          "Report the game to the WWE 2K16 PC port!",
 +          "Please report this.",
            opcode_name, uint32_t(vgt_draw_initiator.source_select));
        draw_succeeded = false;
@@ -16,10 +16,10 @@ index 756fc90..e26a205 100644
 --- a/src/graphics/graphics_system.cpp
 +++ b/src/graphics/graphics_system.cpp
 @@ -334,7 +334,7 @@ void GraphicsSystem::OnHostGpuLossFromAnyThread([[maybe_unused]] bool is_respons
-     log_path = rex::path_to_utf8(rex::filesystem::GetExecutableFolder() / "wwe2k14.log");
+     log_path = rex::path_to_utf8(rex::filesystem::GetExecutableFolder() / "wwe2k16.log");
    }
    const std::string message =
--      "The graphics driver stopped responding, so WWE 2K14 must close.\n\n"
+-      "The graphics driver stopped responding, so WWE 2K16 must close.\n\n"
 +      "The graphics driver stopped responding, so the game must close.\n\n"
        "Please update your graphics driver. If you use Intel graphics, download the driver from "
        "Intel's website, not Windows Update.\n\n"
@@ -28,7 +28,7 @@ index 756fc90..e26a205 100644
    // soon as the user dismisses the dialog rather than allowing a second crash.
    if (app_context_) {
      app_context_->CallInUIThreadSynchronous([this, &message] {
--      if (!app_context_->ShowSimpleMessageBox("WWE 2K14", message.c_str())) {
+-      if (!app_context_->ShowSimpleMessageBox("WWE 2K16", message.c_str())) {
 +      if (!app_context_->ShowSimpleMessageBox("Graphics error", message.c_str())) {
          REXLOG_ERROR("Could not display the fatal GPU message box");
        }
@@ -41,7 +41,7 @@ index 5b323d8..4940668 100644
      // TODO(Triang3l): Support long 1D textures.
      if (width_minus_1 >= xenos::kTexture2DCubeMaxWidthHeight) {
        REXGPU_ERROR(
--          "1D texture is too wide ({}) - ignoring! Report the game to the WWE 2K14 PC port "
+-          "1D texture is too wide ({}) - ignoring! Report the game to the WWE 2K16 PC port "
 +          "1D texture is too wide ({}) - ignoring! Please report this "
            "developers",
            width_minus_1 + 1);
@@ -50,7 +50,7 @@ index 5b323d8..4940668 100644
      if (fetch.tiled) {
        REXGPU_ERROR(
            "1D texture has tiling enabled in the fetch constant, but this "
--          "appears to be completely wrong - ignoring! Report the game to the WWE 2K14 PC port "
+-          "appears to be completely wrong - ignoring! Report the game to the WWE 2K16 PC port "
 +          "appears to be completely wrong - ignoring! Please report this "
            "developers");
        is_invalid_1d = true;
@@ -59,7 +59,7 @@ index 5b323d8..4940668 100644
      if (fetch.packed_mips) {
        REXGPU_ERROR(
            "1D texture has packed mips enabled in the fetch constant, but this "
--          "appears to be completely wrong - ignoring! Report the game to the WWE 2K14 PC port "
+-          "appears to be completely wrong - ignoring! Report the game to the WWE 2K16 PC port "
 +          "appears to be completely wrong - ignoring! Please report this "
            "developers");
        is_invalid_1d = true;
@@ -72,7 +72,7 @@ index 4ff8f2e..efdd60d 100644
      if (host_vertex_shader_type == Shader::HostVertexShaderType(-1)) {
        REXGPU_ERROR(
            "Primitive processor: Unsupported tessellation mode {} for primitive "
--          "type {}. Report the game to the WWE 2K14 PC port!",
+-          "type {}. Report the game to the WWE 2K16 PC port!",
 +          "type {}. Please report this.",
            uint32_t(tessellation_mode), uint32_t(guest_primitive_type));
        assert_always();
@@ -81,7 +81,7 @@ index 4ff8f2e..efdd60d 100644
          "Primitive processor: {} vertices attempted to be drawn with an index "
          "buffer only containing {}. Should be fetching zero indices instead of "
          "overflowing ones, but this is a rare situation, so not handled yet. "
--        "Report the game to the WWE 2K14 PC port!",
+-        "Report the game to the WWE 2K16 PC port!",
 +        "Please report this.",
          guest_draw_vertex_count, static_cast<uint32_t>(vgt_dma_size.num_words));
      guest_draw_vertex_count = vgt_dma_size.num_words;

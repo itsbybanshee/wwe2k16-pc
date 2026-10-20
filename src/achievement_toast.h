@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -15,14 +16,15 @@ class WindowedAppContext;
 
 namespace wwe2k16 {
 
-// "Achievement unlocked" pop-ups at the bottom of the game window, one after another (5 s each): the achievement's
-// icon on the left, "Achievement unlocked: <name>" and the description centred on the right. The ImGui dialog
-// exists only while a pop-up is on screen and draws on the foreground layer without a window, so it never takes
-// input during play.
+// Achievement notifications are shown in a separate, click-through host window so they don't divert game-frame
+// presentation through the UI thread.
 class AchievementToasts {
  public:
-  // UI thread. Loads the pop-up fonts (Segoe UI regular and bold) into the overlay's font atlas.
-  void Attach(rex::ui::WindowedAppContext* app_context, rex::ui::ImGuiDrawer* drawer);
+  ~AchievementToasts();
+
+  // UI thread. native_window_handle is the game's HWND on Windows.
+  void Attach(rex::ui::WindowedAppContext* app_context, rex::ui::ImGuiDrawer* drawer,
+              void* native_window_handle = nullptr);
   void Detach();
 
   // Any thread (unlocks arrive on guest threads). icon_path: PNG of the achievement icon, may be empty.
@@ -33,6 +35,7 @@ class AchievementToasts {
 
  private:
   friend class AchievementToastDialog;
+  struct NativeState;
 
   struct Toast {
     std::string name;
@@ -44,6 +47,7 @@ class AchievementToasts {
 
   rex::ui::WindowedAppContext* app_context_ = nullptr;
   rex::ui::ImGuiDrawer* drawer_ = nullptr;
+  std::shared_ptr<NativeState> native_state_;
   ImFont* font_regular_ = nullptr;
   ImFont* font_bold_ = nullptr;
   std::mutex mutex_;

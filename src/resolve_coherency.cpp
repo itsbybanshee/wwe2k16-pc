@@ -24,6 +24,7 @@
 #include <rex/ppc/context.h>
 #include <rex/ppc/memory.h>
 #include <rex/runtime.h>
+#include <rex/system/kernel_state.h>
 
 #ifdef WWE2K16_TU
 #define WWE2K16_FN_UntileSurface sub_82C78698
@@ -35,38 +36,75 @@
 
 namespace {
 
-void MakeUntileSourceVisible(uint32_t source, uint32_t width, uint32_t height, uint32_t texel_pitch) {
+uint64_t HashGuestRange(uint32_t address, uint64_t length) {
+  constexpr uint64_t kMaxHash = 64u * 1024 * 1024;
+  if (!address || !length || length > kMaxHash) {
+    return 0;
+  }
+  auto* kernel_state = REX_KERNEL_STATE();
+  auto* memory = kernel_state ? kernel_state->memory() : nullptr;
+  if (!memory || !memory->LookupHeap(address)) {
+    return 0;
+  }
+  const auto* data = memory->TranslateVirtual<const uint8_t*>(address);
+  uint64_t hash = 14695981039346656037ull;
+  for (uint64_t i = 0; i < length; ++i) {
+    hash ^= data[i];
+    hash *= 1099511628211ull;
+  }
+  return hash;
+}
+
+bool MakeUntileSourceVisible(uint32_t source, uint32_t width, uint32_t height,
+                             uint32_t texel_pitch) {
   static const bool enabled = [] {
     const char* v = std::getenv("WWE2K16_UNTILE_COHERENCY");
     return !(v && v[0] == '0');
   }();
   if (!enabled || !source) {
-    return;
+    return false;
   }
   // The tiled source spans whole 32x32 tiles: the size XGUntileSurface itself uses for its copy.
   uint64_t size = uint64_t((width + 31) & ~31u) * ((height + 31) & ~31u) * texel_pitch;
   if (!size || size > 64u * 1024 * 1024) {
-    return;
+    return false;
   }
   auto* runtime = rex::Runtime::instance();
   auto* graphics = runtime ? static_cast<rex::graphics::GraphicsSystem*>(runtime->graphics_system())
                            : nullptr;
   if (!graphics || !graphics->command_processor()) {
-    return;
+    return false;
   }
   bool ok = graphics->command_processor()->MakeGpuWritesVisibleToCpu(source, uint32_t(size));
-  static int logged = 0;
-  if (logged < 32) {
-    ++logged;
-    REXLOG_INFO("[wwe2k16] untile {:08X} {}x{} x{} B: GPU data {}", source, width, height, texel_pitch,
-                ok ? "read back" : "not in GPU memory");
-  }
+  return ok;
 }
 
 }  // namespace
 
 extern "C" PPC_FUNC(WWE2K16_IMP_UntileSurface);
 extern "C" PPC_FUNC(WWE2K16_FN_UntileSurface) {
-  MakeUntileSourceVisible(ctx.r6.u32, ctx.r7.u32, ctx.r8.u32, ctx.r10.u32);
+  const uint32_t dest = ctx.r3.u32;
+  const uint32_t row_pitch = ctx.r4.u32;
+  const uint32_t point = ctx.r5.u32;
+  const uint32_t source = ctx.r6.u32;
+  const uint32_t width = ctx.r7.u32;
+  const uint32_t height = ctx.r8.u32;
+  const uint32_t rect = ctx.r9.u32;
+  const uint32_t texel_pitch = ctx.r10.u32;
+  const uint64_t source_size = uint64_t((width + 31) & ~31u) *
+                               ((height + 31) & ~31u) * texel_pitch;
+  const bool readback_ok = MakeUntileSourceVisible(source, width, height, texel_pitch);
+  const uint64_t source_hash = HashGuestRange(source, source_size);
   WWE2K16_IMP_UntileSurface(ctx, base);
+  const uint64_t dest_size = uint64_t(row_pitch) * height;
+  const uint64_t dest_hash = HashGuestRange(dest, dest_size);
+  static int logged = 0;
+  if (logged < 32) {
+    ++logged;
+    REXLOG_INFO(
+        "[wwe2k16] untile dest={:08X} row_pitch={} point={:08X} rect={:08X} source={:08X} "
+        "{}x{} texel_pitch={} readback={} src_hash={:016X} dest_hash={:016X}",
+        dest, row_pitch, point, rect, source, width, height, texel_pitch,
+        readback_ok ? "ok" : "failed", source_hash, dest_hash);
+  }
 }

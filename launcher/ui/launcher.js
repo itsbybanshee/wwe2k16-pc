@@ -512,7 +512,7 @@ function renderSettings() {
     if (elements.shadows) elements.shadows.checked = settings.shadows !== false;
     if (elements.fpsCounter) elements.fpsCounter.checked = Boolean(settings.fpsCounter);
 
-    const currentWindowMode = (settings.windowMode || (settings.fullscreen ? 'fullscreen' : 'borderless')).toLowerCase();
+    const currentWindowMode = (settings.windowMode || 'borderless').toLowerCase() === 'windowed' ? 'windowed' : 'borderless';
     elements.windowModeButtons.forEach(button => {
         const on = button.dataset.windowMode.toLowerCase() === currentWindowMode;
         button.setAttribute('aria-checked', String(on));
@@ -755,7 +755,7 @@ document.getElementById('resolution-group').addEventListener('keydown', event =>
 elements.windowModeButtons.forEach(button => {
     button.addEventListener('click', () => {
         settings.windowMode = button.dataset.windowMode;
-        settings.fullscreen = (settings.windowMode === 'fullscreen');
+        settings.fullscreen = false;
         renderSettings();
         saveSettings();
     });
@@ -765,7 +765,7 @@ document.getElementById('window-mode-group')?.addEventListener('keydown', event 
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
     if (!step) return;
     event.preventDefault();
-    const currentMode = (settings.windowMode || (settings.fullscreen ? 'fullscreen' : 'borderless')).toLowerCase();
+    const currentMode = (settings.windowMode || 'borderless').toLowerCase() === 'windowed' ? 'windowed' : 'borderless';
     const index = elements.windowModeButtons.findIndex(b => b.dataset.windowMode.toLowerCase() === currentMode);
     const next = elements.windowModeButtons[(index + step + elements.windowModeButtons.length) % elements.windowModeButtons.length];
     next.click();
@@ -1017,8 +1017,50 @@ elements.play.addEventListener('click', () => {
 });
 // Social links open in the default browser (the launcher itself never navigates away).
 document.querySelectorAll('.social-link').forEach(link => {
-    link.addEventListener('click', () => send('openUrl', { url: link.dataset.url }));
+    if (link.dataset.url) link.addEventListener('click', () => send('openUrl', { url: link.dataset.url }));
 });
+document.getElementById('update-button').addEventListener('click', () => send('checkUpdates'));
+const updateModal = document.getElementById('update-modal');
+document.getElementById('update-no').addEventListener('click', () => { updateModal.hidden = true; });
+document.getElementById('update-yes').addEventListener('click', () => { updateModal.hidden = true; send('installUpdate'); });
+
+function renderUpdate(update) {
+    const button = document.getElementById('update-button');
+    button.classList.toggle('update-available', Boolean(update.available));
+    button.classList.toggle('update-checking', update.status === 'checking' || update.status === 'downloading');
+    const titles = { checking: 'Checking for updates…', downloading: `Downloading update ${update.version || ''}…`,
+        available: `Update available: ${update.version}. Click to install`, current: 'Up to date',
+        error: `Update check failed: ${update.message || 'click to retry'}`, idle: 'Check for updates' };
+    button.title = titles[update.status] || 'Check for updates';
+    button.setAttribute('aria-label', button.title);
+    if (update.status === 'available') {
+        document.getElementById('update-modal-message').textContent = `Version ${update.version} is available. Download and restart launcher?`;
+        document.getElementById('update-modal-title').textContent = 'Updates available';
+        updateModal.classList.remove('is-notice');
+        positionUpdatePopup(button);
+        updateModal.hidden = false;
+    } else if (update.status === 'current') {
+        document.getElementById('update-modal-title').textContent = 'Up to date';
+        document.getElementById('update-modal-message').textContent = 'You have the latest release.';
+        updateModal.classList.add('is-notice');
+        positionUpdatePopup(button);
+        updateModal.hidden = false;
+        setTimeout(() => { if (updateModal.classList.contains('is-notice')) updateModal.hidden = true; }, 2600);
+    } else if (update.status === 'checking' || update.status === 'downloading') updateModal.hidden = true;
+    if (update.status === 'current') setTimeout(() => { if (button.title === 'Up to date') button.title = 'Check for updates'; }, 3500);
+}
+
+function positionUpdatePopup(button) {
+    const rect = button.getBoundingClientRect();
+    updateModal.hidden = false;
+    requestAnimationFrame(() => {
+        const popup = updateModal.querySelector('.update-modal-card');
+        const width = updateModal.getBoundingClientRect().width;
+        const height = updateModal.getBoundingClientRect().height;
+        updateModal.style.left = `${Math.max(12, rect.left - width - 8)}px`;
+        updateModal.style.top = `${Math.max(8, rect.top + (rect.height - height) / 2)}px`;
+    });
+}
 
 // ---------- Messages from the launcher ----------
 
@@ -1027,6 +1069,7 @@ function handleMessage(message) {
         case 'state':
             settings = message.settings;
             state = message;
+            document.getElementById('version-text').textContent = `v${message.version || '1.0.0'}`;
             setLauncherLanguage(settings.language);
             renderSettings();
             renderGame();
@@ -1035,6 +1078,11 @@ function handleMessage(message) {
             renderAchievements(message.achievements);
             renderMusic(message.music || []);
             renderLogos(message.logos);
+            renderUpdate(message.update || { status: 'checking' });
+            break;
+        case 'updateStatus':
+            state.update = message;
+            renderUpdate(message);
             break;
         case 'gameRunning':
             state.running = message.running;

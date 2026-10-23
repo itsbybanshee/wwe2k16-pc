@@ -123,11 +123,29 @@ body::before {
     height: 16px;
 }
 
+.update-link { box-sizing: border-box; color: #f2f4f8; width: auto; min-width: 82px; height: 40px; padding: 0 15px; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.update-link.update-available { color: #ff3755; border-color: rgb(255 55 85 / 65%); }
+.update-link.update-checking { opacity: .65; }
+.update-modal { position: fixed; inset: auto; z-index: 10000; display: flex; align-items: center; gap: 7px; padding: 0; background: transparent; pointer-events: none; }
+.update-modal[hidden] { display: none; }
+.update-modal-card { box-sizing: border-box; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; width: max-content; max-width: min(360px,calc(100vw - 200px)); padding: 2px 14px; color: #e8282f; border: 1px solid rgb(232 40 47 / 50%); border-radius: 999px; background: rgb(10 15 23 / 96%); box-shadow: 0 12px 30px rgb(0 0 0 / 45%); pointer-events: auto; animation: popup-fade-in 140ms ease-out both; text-align: center; }
+.update-modal-card h2 { margin: 0; font-size: 12px; line-height: 14px; }
+.update-modal-card p { margin: 0; color: #f4f5f7; font-size: 11px; line-height: 13px; }
+.update-modal-actions { display: flex; align-items: center; gap: 5px; pointer-events: auto; }
+.update-modal-actions button { box-sizing: border-box; height: 40px; min-width: 42px; padding: 0 10px; border: 1px solid rgb(232 40 47 / 42%); border-radius: 999px; color: #e8282f; background: rgb(10 15 23 / 96%); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; transition: transform 160ms ease, background-color 160ms ease; }
+.update-modal-actions button:hover { transform: scale(1.05); background: rgb(232 40 47 / 14%); }
+.update-modal-actions .update-yes { color: #f4f5f7; background: rgb(232 40 47 / 22%); }
+.update-modal.is-notice .update-modal-actions { display: none; }
+.update-modal.is-notice .update-modal-card h2 { line-height: 15px; white-space: nowrap; }
+.update-modal.is-notice .update-modal-card p { color: #f4f5f7; font-size: 11px; line-height: 13px; white-space: nowrap; }
+
 .launcher-title {
     display: flex;
     align-items: center;
     gap: 12px;
 }
+
+.version-text { display: inline-flex; align-items: center; color: #f4f5f7; font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap; }
 
 .launcher-title h1 {
     font-size: 40px;

@@ -100,9 +100,9 @@ class Wwe2k16App : public rex::ReXApp {
     rex::cvar::SetFlagByName("vulkan_allow_present_mode_mailbox", allow_mailbox ? "true" : "false");
     rex::cvar::SetFlagByName("vulkan_allow_present_mode_fifo_relaxed", "true");
     rex::cvar::SetFlagByName("display_refresh_match", "false");
-    // With 60 Hz display mode switch on launch, locking guest vblank to host display vblank
-    // eliminates clock drift, frame cadence flutter, and micro-stutter during entrances and victory motions.
-    // If running at an incompatible refresh rate, the engine automatically falls back to timer vblank.
+    // Keep the guest update clock at 60 Hz. When host-vblank pacing is available, a rational accumulator spreads
+    // those updates over arbitrary display rates (75 Hz = 4 updates per 5 refreshes); stalled/unavailable host waits
+    // fall back to the fixed-deadline timer. Switching the display to 60 Hz still gives the cleanest 1:1 cadence.
     rex::cvar::SetFlagByName("vsync_host_display", EnvIs("WWE2K16_HOST_VSYNC", "0") ? "false" : "true");
     // Swapchain image count:
     // Requesting 2 images provides low-latency double buffering, eliminating frame queue delay

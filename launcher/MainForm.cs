@@ -26,6 +26,9 @@ public sealed class MainForm : Form
     Process? _game;
     readonly System.Windows.Forms.Timer _gamePollTimer = new() { Interval = 1000 };
     bool _dlcBusy;
+    ReleaseInfo? _latestRelease;
+    bool _updateChecking;
+    readonly bool _updatePreview = Environment.GetEnvironmentVariable("WWE2K16_UPDATE_PREVIEW") == "1";
 
     static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -206,7 +209,20 @@ public sealed class MainForm : Form
         {
             case "init":
                 SendState();
+                if (_updatePreview)
+                    Post(new { type = "updateStatus", status = "available", available = true, version = "1.1.1" });
+                else
+                    _ = CheckForUpdatesAsync();
                 if (Opacity < 1) Opacity = 1;
+                break;
+            case "checkUpdates":
+                if (_updatePreview)
+                    Post(new { type = "updateStatus", status = "available", available = true, version = "1.1.1" });
+                else
+                    _ = CheckForUpdatesAsync();
+                break;
+            case "installUpdate":
+                _ = InstallLatestUpdateAsync();
                 break;
             case "save":
                 ApplySettings(msg!["settings"]);
@@ -300,9 +316,9 @@ public sealed class MainForm : Form
         if (!LauncherSettings.LanguageIds.ContainsKey((s.Language ?? "").ToLowerInvariant())) s.Language = "english";
         if (!LauncherSettings.AaOptions.Contains((s.AntiAliasing ?? "").ToLowerInvariant())) s.AntiAliasing = "fxaa";
         if (!LauncherSettings.UpscalerOptions.Contains((s.Upscaler ?? "").ToLowerInvariant())) s.Upscaler = "off";
-        if (string.IsNullOrWhiteSpace(s.WindowMode)) s.WindowMode = s.Fullscreen ? "fullscreen" : "borderless";
+        if (string.IsNullOrWhiteSpace(s.WindowMode)) s.WindowMode = "borderless";
         else if (!LauncherSettings.WindowModeOptions.Contains(s.WindowMode.ToLowerInvariant())) s.WindowMode = "borderless";
-        s.Fullscreen = s.WindowMode == "fullscreen";
+        s.Fullscreen = false;
         _settings = s;
         try { _settings.Save(_paths.SettingsFile); }
         catch (IOException ex) { Toast($"Settings could not be saved: {ex.Message}", true); }
@@ -316,6 +332,8 @@ public sealed class MainForm : Form
         Post(new
         {
             type = "state",
+            version = AppUpdater.CurrentVersion,
+            update = new { status = _updateChecking ? "checking" : _latestRelease != null ? "available" : "idle", available = _latestRelease != null, version = _latestRelease?.Version },
             settings = _settings,
             game = new { ok = gameOk, message = gameMessage },
             exe = new { ok = File.Exists(_paths.GameExe), path = _paths.GameExe },
@@ -328,6 +346,39 @@ public sealed class MainForm : Form
             tu = new { installed = _tu.Installed, built = _tu.ExeBuilt, building = _tuBusy, name = _tu.Name },
             screen = new { width = Screen.FromControl(this).Bounds.Width, height = Screen.FromControl(this).Bounds.Height },
         });
+    }
+
+    async Task CheckForUpdatesAsync()
+    {
+        if (_updateChecking) return;
+        _updateChecking = true;
+        Post(new { type = "updateStatus", status = "checking", available = false });
+        try
+        {
+            _latestRelease = await AppUpdater.CheckAsync();
+            Post(new { type = "updateStatus", status = _latestRelease == null ? "current" : "available", available = _latestRelease != null, version = _latestRelease?.Version });
+        }
+        catch (Exception ex)
+        {
+            Post(new { type = "updateStatus", status = "error", available = false, message = ex.Message });
+        }
+        finally { _updateChecking = false; }
+    }
+
+    async Task InstallLatestUpdateAsync()
+    {
+        if (_updatePreview) { Toast("Preview only — no update was downloaded."); return; }
+        if (_latestRelease == null) { await CheckForUpdatesAsync(); return; }
+        try
+        {
+            Post(new { type = "updateStatus", status = "downloading", available = true, version = _latestRelease.Version });
+            await AppUpdater.DownloadAndInstallAsync(this, _latestRelease);
+        }
+        catch (Exception ex)
+        {
+            Post(new { type = "updateStatus", status = "error", available = true, message = ex.Message });
+            Toast($"Update failed: {ex.Message}", true);
+        }
     }
 
     // Written by the game (SDK achievements.cpp) once it has loaded: every achievement with its unlock state.
@@ -447,7 +498,7 @@ public sealed class MainForm : Form
         bool mountUpdateRoot = useTu && !gameIsAlreadyTu && _tu.Ready;
 
         var (scale, width, height) = _settings.Display();
-        bool isFullscreen = _settings.WindowMode == "fullscreen";
+        bool isFullscreen = false;
         bool isBorderless = _settings.WindowMode == "borderless";
         var area = Screen.FromControl(this).WorkingArea;
         var bounds = Screen.FromControl(this).Bounds;

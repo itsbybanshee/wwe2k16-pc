@@ -9,7 +9,7 @@
     <AssemblyName>WWE 2K16 PC</AssemblyName>
     <RootNamespace>Wwe2k16Launcher</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>0.1.0</Version>
+    <Version>1.1.0</Version>
     <ApplicationIcon>..\res\wwe2k16.ico</ApplicationIcon>
   </PropertyGroup>
 

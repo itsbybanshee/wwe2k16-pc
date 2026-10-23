@@ -315,17 +315,3 @@ index 844612b..ff3174f 100644
  
    return result;
  }
-@@ -563,3 +563,6 @@ void MnkInputDriver::OnKeyDown(rex::ui::KeyEvent& e) {
-       if (pad_vk != VirtualKey::kNone) {
-         EnqueueKeystroke(static_cast<uint16_t>(pad_vk), true, 0, e.prev_state());
-       }
-+      if (vk == static_cast<uint16_t>(VirtualKey::kReturn)) {
-+        EnqueueKeystroke(static_cast<uint16_t>(VirtualKey::kXInputPadA), true, 0, e.prev_state());
-+      }
-@@ -630,3 +633,6 @@ void MnkInputDriver::OnKeyUp(rex::ui::KeyEvent& e) {
-   if (pad_vk != VirtualKey::kNone) {
-     EnqueueKeystroke(static_cast<uint16_t>(pad_vk), false);
-   }
-+  if (vk == static_cast<uint16_t>(VirtualKey::kReturn)) {
-+    EnqueueKeystroke(static_cast<uint16_t>(VirtualKey::kXInputPadA), false);
-+  }

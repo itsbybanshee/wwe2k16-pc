@@ -8632,7 +8632,7 @@ index 3706e38..756fc90 100644
 +                    "Log per second how many new frames reached each host display vblank (Windows)")
 +    .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
  
-+REXCVAR_DEFINE_INT32(vsync_host_display_phase_percent, 50, "GPU",
++REXCVAR_DEFINE_INT32(vsync_host_display_phase_percent, 5, "GPU",
 +                     "With vsync_host_display: fire the guest vblank this percentage of a display period after the "
 +                     "display vblank (0 = at the vblank)");
 +

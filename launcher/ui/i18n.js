@@ -31,7 +31,7 @@ const I18N_ROWS = [
     ['FPS Counter', 'Compteur de FPS', 'FPS-Anzeige', 'Contatore FPS', 'Contador de FPS'],
     ['Displays in-game framerate overlay.', 'Affiche les images par seconde en jeu.', 'Zeigt die Bildrate im Spiel an.', 'Mostra i fotogrammi al secondo in gioco.', 'Muestra los fotogramas por segundo en el juego.'],
     ['Window Mode', "Mode d'affichage", 'Fenstermodus', 'Modalità finestra', 'Modo de ventana'],
-    ['Windowed, borderless, or fullscreen.', 'Fenêtré, sans bordure ou plein écran.', 'Fenster, randlos oder Vollbild.', 'In finestra, senza bordi o a schermo intero.', 'Ventana, sin bordes o pantalla completa.'],
+    ['Windowed or borderless.', 'Fenêtré ou sans bordure.', 'Fenster oder randlos.', 'In finestra o senza bordi.', 'Ventana o sin bordes.'],
     ['Off', 'Non', 'Aus', 'No', 'No'],
     ['Anisotropic Filtering', 'Filtrage anisotrope', 'Anisotrope Filterung', 'Filtro anisotropico', 'Filtrado anisotrópico'],
     ['Sharpens textures viewed at angles.', 'Textures plus nettes vues de biais.', 'Schärfere Texturen aus schrägen Winkeln.', 'Texture più nitide viste di sbieco.', 'Texturas más nítidas vistas en ángulo.'],

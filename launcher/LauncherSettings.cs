@@ -29,7 +29,7 @@ public sealed class LauncherSettings
     public string PreviousGameFolder { get; set; } = "";
 
     [JsonIgnore] public static readonly string[] Resolutions = ["720", "1080", "1440", "2160"];
-    [JsonIgnore] public static readonly string[] WindowModeOptions = ["windowed", "borderless", "fullscreen"];
+    [JsonIgnore] public static readonly string[] WindowModeOptions = ["windowed", "borderless"];
     [JsonIgnore] public static readonly string[] AnisoOptions = ["off", "4x", "16x"];
     [JsonIgnore] public static readonly string[] AaOptions = ["off", "fxaa", "extreme", "max"];
     [JsonIgnore] public static readonly string[] UpscalerOptions = ["off", "fsr"];
@@ -47,9 +47,9 @@ public sealed class LauncherSettings
             {
                 var s = JsonSerializer.Deserialize<LauncherSettings>(File.ReadAllText(path)) ?? new();
                 if (!Resolutions.Contains(s.Resolution)) s.Resolution = "720";
-                if (string.IsNullOrWhiteSpace(s.WindowMode)) s.WindowMode = s.Fullscreen ? "fullscreen" : "borderless";
+                if (string.IsNullOrWhiteSpace(s.WindowMode)) s.WindowMode = "borderless";
                 else if (!WindowModeOptions.Contains(s.WindowMode.ToLowerInvariant())) s.WindowMode = "borderless";
-                s.Fullscreen = s.WindowMode == "fullscreen";
+                s.Fullscreen = false;
                 if (!AnisoOptions.Contains((s.Anisotropic ?? "").ToLowerInvariant())) s.Anisotropic = "4x";
                 if (!LanguageIds.ContainsKey((s.Language ?? "").ToLowerInvariant())) s.Language = "english";
                 if (!AaOptions.Contains((s.AntiAliasing ?? "").ToLowerInvariant())) s.AntiAliasing = "fxaa";
@@ -63,7 +63,7 @@ public sealed class LauncherSettings
 
     public void Save(string path)
     {
-        Fullscreen = WindowMode == "fullscreen";
+        Fullscreen = false;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
     }

@@ -25,6 +25,8 @@
 #include <rex/ppc/context.h>
 #include <rex/ppc/memory.h>
 
+#include "fps_overlay.h"
+
 // WWE 2K16 retail addresses, matched to the WWE 2K16 functions by tools/port_functions.py; the timing block from the
 // same instructions in the 60 -> 30 switch.
 #ifdef WWE2K16_TU
@@ -138,6 +140,7 @@ struct FlipStats {
 
 extern "C" PPC_FUNC(WWE2K16_IMP_ChooseFlip);
 extern "C" PPC_FUNC(WWE2K16_FN_ChooseFlip) {
+  wwe2k16::RecordGameFrame();
   static uint32_t last_threshold = UINT32_MAX;
   static FlipStats stats;
   const uint32_t orig_threshold = ctx.r3.u32 & 0xFF;

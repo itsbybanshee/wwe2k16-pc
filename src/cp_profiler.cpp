@@ -50,6 +50,31 @@ HANDLE FindThreadByName(const wchar_t* name) {
   return found;
 }
 
+// Walks the stack of a suspended thread. A thread suspended mid-syscall or inside code without unwind data can hand
+// back a context that makes the unwinder (or the raw-stack fallback) fault, so any exception just ends the walk.
+// Kept free of C++ objects so __try is allowed, and it must not allocate (the suspended thread may hold the heap lock).
+int WalkStack(CONTEXT context, uint64_t image, uint64_t* frames, int max_depth) {
+  int depth = 0;
+  __try {
+    while (depth < max_depth && context.Rip) {
+      DWORD64 base = 0;
+      PRUNTIME_FUNCTION function = RtlLookupFunctionEntry(context.Rip, &base, nullptr);
+      frames[depth++] = function && base == image ? image + function->BeginAddress : context.Rip;
+      if (!function) {
+        context.Rip = *reinterpret_cast<DWORD64*>(context.Rsp);
+        context.Rsp += 8;
+      } else {
+        void* handler_data = nullptr;
+        DWORD64 establisher = 0;
+        RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, context.Rip, function, &context, &handler_data, &establisher,
+                         nullptr);
+      }
+    }
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+  }
+  return depth;
+}
+
 void Run() {
   HANDLE thread = nullptr;
   while (!(thread = FindThreadByName(L"GPU Commands"))) {
@@ -68,23 +93,7 @@ void Run() {
     if (SuspendThread(thread) != DWORD(-1)) {
       CONTEXT context{};
       context.ContextFlags = CONTEXT_FULL;
-      if (GetThreadContext(thread, &context)) {
-        // No allocation while the thread is suspended (it may hold the heap lock).
-        while (depth < kMaxDepth && context.Rip) {
-          DWORD64 base = 0;
-          PRUNTIME_FUNCTION function = RtlLookupFunctionEntry(context.Rip, &base, nullptr);
-          frames[depth++] = function && base == image ? image + function->BeginAddress : context.Rip;
-          if (!function) {
-            context.Rip = *reinterpret_cast<DWORD64*>(context.Rsp);
-            context.Rsp += 8;
-          } else {
-            void* handler_data = nullptr;
-            DWORD64 establisher = 0;
-            RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, context.Rip, function, &context, &handler_data, &establisher,
-                             nullptr);
-          }
-        }
-      }
+      if (GetThreadContext(thread, &context)) depth = WalkStack(context, image, frames, kMaxDepth);
       ResumeThread(thread);
     }
     if (depth) {

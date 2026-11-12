@@ -1,4 +1,11 @@
-# WWE 2K16 PC Recomp (By Banshee)
+﻿# WWE 2K16 PC Recomp
+
+> **v2.0.0 (fork by [iMrBurn](https://github.com/iMrBurn))** - continuation of [Banshee's WWE 2K16 PC](https://github.com/itsbybanshee/wwe2k16-pc), who no longer works on his recomps. This version runs on ReXGlue SDK v0.10 with a **native Vulkan renderer** (re:Blue + plume) instead of Xbox 360 GPU emulation: far lower GPU load, steady 60 FPS, up to 4K. Banshee's launcher and in-game features are kept.
+> Download: [Releases](https://github.com/iMrBurn/wwe2k16-pc/releases/latest). Needs **WWE 2K16 Title Update 3** (installed from the launcher) and a Vulkan 1.2 GPU. The older GPU-emulation build is `bin\wwe2k16.exe` in the zip.
+>
+> New in v2.0.0: native renderer, upscaler (the launcher's "fsr" option is a Lanczos-based upscaler, not AMD FSR), automatic graphics profile for weak GPUs, pipeline seed against first-run stutter, ported achievement pop-up.
+> Known limits: screenshots are window-sized; rare crashes may remain (please open an issue with your log). Build notes: `docs/NATIVE_PORT_PLAN.md`, `tools/build-v10.ps1`.
+> Original text below is Banshee's (v1.x); parts about FSR refer to his Xenos build.
 
 WWE 2K16 PC recompilation with a modern launcher, graphics options, non-destructive mod support, custom soundtrack, achievements and more.
 

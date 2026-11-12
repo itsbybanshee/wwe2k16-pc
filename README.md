@@ -71,4 +71,8 @@ Online features of the original game are not available. This is an early release
 - [MrBurn](https://github.com/iMrBurn) for help with texture rendering issues
 - [Bryan Caminos](https://github.com/BryanCaminos) for troubleshooting & testing
 
+## Licences
+
+- I allow [MrBurn](https://github.com/iMrBurn) to take over my code and distribute it with his own modifications.
+
 Fan project, not affiliated with WWE, 2K or Yuke's.

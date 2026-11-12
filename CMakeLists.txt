@@ -15,12 +15,45 @@ set(WWE2K16_SOURCES
 )
 
 if(WIN32)
+    enable_language(RC)
+endif()
+
+if(WIN32)
     add_executable(wwe2k16 WIN32 ${WWE2K16_SOURCES})
 else()
     add_executable(wwe2k16 ${WWE2K16_SOURCES})
 endif()
 
+
+# Native renderer (docs/NATIVE_PORT_PLAN.md): a second executable, wwe2k16_native.exe, that draws the game's D3D calls
+# through re:Blue + plume (Vulkan), taken from WWE 2K15 PC / WWE '12 PC. It links the same recompiled objects; wwe2k16.exe
+# (Xenos GPU emulation) is unchanged. Needs plume and reblue-XenosRecomp in native-deps/ (WWE2K16_NATIVE_DEPS).
+# Added before the SDK libraries so plume's VMA wins over rexruntime's (see WWE '12 PC).
+option(WWE2K16_NATIVE_RENDERER "Also build wwe2k16_native.exe (native Vulkan renderer)" OFF)
+if(WWE2K16_NATIVE_RENDERER)
+    include(cmake/native_renderer.cmake)
+    add_executable(wwe2k16_native WIN32 src/main.cpp res/wwe2k16.rc)
+    wwe2k16_add_native_renderer(wwe2k16_native)
+endif()
 rexglue_setup_target(wwe2k16 GPU_PLUGINS xenos)
+
+if(WWE2K16_NATIVE_RENDERER)
+    # wwe2k16_recomp only exists once codegen has written generated_v10/ (a fresh checkout's first configure doesn't).
+    if(TARGET wwe2k16_recomp)
+        target_sources(wwe2k16_native PRIVATE $<TARGET_OBJECTS:wwe2k16_recomp>)
+    endif()
+    target_include_directories(wwe2k16_native PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${REXGLUE_ENTRYPOINT_INCLUDE_DIR})
+    target_link_libraries(wwe2k16_native PRIVATE rex::runtime)
+    add_dependencies(wwe2k16_native wwe2k16_codegen)
+    rexglue_apply_target_settings(wwe2k16_native)
+    rexglue_configure_target(wwe2k16_native GPU_PLUGINS xenos)
+    if(MSVC)
+        target_link_options(wwe2k16_native PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+    endif()
+endif()
 
 if(WIN32)
     enable_language(RC)

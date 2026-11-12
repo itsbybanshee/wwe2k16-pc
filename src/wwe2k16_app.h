@@ -29,6 +29,17 @@
 #include <rex/rex_app.h>
 #include <rex/system/kernel_state.h>
 
+#include <imgui.h>
+
+#if defined(SVR_NATIVE_RENDERER)
+// Native renderer (wwe2k16_native.exe only, cmake/native_renderer.cmake): re:Blue draws through plume (Vulkan) from the
+// game's own D3D calls instead of emulating the Xenos GPU.
+#include <rex/system/gpu_plugin.h>
+#include "gpu/device.h"
+#include "gpu/imgui_overlay_drawer.h"
+#include "gpu/shaders/shader_cache.h"
+#endif
+
 // Options the launcher always passes. They must exist as cvars or the command line parser rejects them. The ones
 // marked "not yet" are accepted and ignored until the matching feature is ported (see docs/NATIVE_PORT_PLAN.md).
 // (resolution_scale, anisotropic_override, swap_post_effect and present_effect already exist in the Xenos GPU plugin.)
@@ -71,7 +82,68 @@ class Wwe2k16App : public rex::ReXApp {
     if (config.gpu_plugin.empty()) {
       config.gpu_plugin = "xenos";
     }
+#if defined(SVR_NATIVE_RENDERER)
+    // The Xenos plugin's "null" backend keeps the game's D3D command stream moving (fences, interrupts, vblank) without
+    // drawing; the re:Blue hooks draw instead.
+    if (!config.graphics) {
+      config.graphics = rex::system::LoadGpuPlugin(config.gpu_plugin, "null");
+      REXLOG_INFO("Native renderer: guest GPU {}", config.graphics ? "null (sync only)" : "MISSING");
+    }
+#endif
   }
+
+#if defined(SVR_NATIVE_RENDERER)
+  // The plume device draws the ImGui overlays at Present time.
+  std::unique_ptr<rex::ui::ImmediateDrawer> OnCreateImmediateDrawer() override {
+    return std::make_unique<bd::gpu::ImGuiOverlayDrawer>();
+  }
+
+  void OnPreLaunchModule() override {
+    if (!bd::gpu::Video::CreateHostDevice(window())) {
+      // GPU or driver without the Vulkan 1.2 features re:Blue needs (bufferDeviceAddress, descriptor indexing...):
+      // device.cpp has logged which. Say so and quit instead of running behind a black window. The launcher looks for
+      // "could not create the host device" in the log: keep it.
+      REXLOG_ERROR("Native renderer: could not create the host device (Vulkan unavailable or too old)");
+      rex::FlushLogging();
+#if defined(_WIN32)
+      MessageBoxW(nullptr,
+                  L"The native renderer could not start: this graphics card or its driver lacks the Vulkan 1.2 "
+                  L"features it needs.\n\nUpdate the graphics driver.\n\nLe rendu natif n’a pas pu démarrer : "
+                  L"cette carte graphique ou son pilote n’a pas les fonctions Vulkan 1.2 nécessaires.\n\n"
+                  L"Mets à jour le pilote graphique.",
+                  L"WWE 2K16 PC", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
+#endif
+      std::_Exit(1);
+    }
+#if defined(WWE2K16_RUNTIME_SHADERS)
+    // Without a usable dxcompiler.dll no shader can be converted and the window stays black: fail cleanly.
+    if (!Wwe2k16DxcUsable()) {
+      REXLOG_ERROR("Native renderer: shader compiler (dxcompiler.dll) missing or unusable");
+      rex::FlushLogging();
+#if defined(_WIN32)
+      MessageBoxW(nullptr,
+                  L"The native renderer could not start: dxcompiler.dll is missing or unusable (it must sit next to the "
+                  L"program).\n\nLe rendu natif n’a pas pu démarrer : dxcompiler.dll est absent ou "
+                  L"inutilisable (il doit être à côté du programme).",
+                  L"WWE 2K16 PC", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
+#endif
+      std::_Exit(1);
+    }
+#endif
+    // Present runs on the game thread and ImGui on the UI thread: draw the overlay synchronously on the UI thread into
+    // the presented image.
+    bd::gpu::Video::SetOverlayDrawHook([this](plume::RenderCommandList* cmd, plume::RenderFramebuffer* fb, uint32_t w,
+                                              uint32_t h) {
+      if (!imgui_drawer() || !imgui_drawer()->HasDialogs()) return;
+      app_context().CallInUIThreadSynchronous([this, cmd, fb, w, h] {
+        bd::gpu::ReblueUIDrawContext ctx(w, h, cmd, fb);
+        imgui_drawer()->Draw(ctx);
+      });
+    });
+  }
+
+  void OnWindowPixelSizeChanged(uint32_t, uint32_t) override { bd::gpu::Video::RequestResize(); }
+#endif
 
   void OnConfigurePaths(rex::PathConfig& paths) override {
     const auto exe_dir = rex::filesystem::GetExecutableFolder();

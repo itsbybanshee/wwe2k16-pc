@@ -33,3 +33,4 @@ __pycache__/
 # ReXGlue v0.10.0 SDK checkout (native renderer base), see docs/NATIVE_PORT_PLAN.md
 /sdk-v10/
 /generated_v10/
+/native-deps/

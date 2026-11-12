@@ -172,7 +172,21 @@ class Wwe2k16App : public rex::ReXApp {
     if (const char* overlay = std::getenv("WWE2K16_GAME_OVERLAY"); overlay && *overlay) {
       AddOverlay(fs, "\\GAMEMODS", overlay);
     }
-    if (!update_data_root_.empty()) AddOverlay(fs, "\\GAMEUPDATE", update_data_root_);
+    // Only default.xexp goes over the disc: the title reads the rest of its update through update:\ (the SDK mounts
+    // --update_data_root there) and falls back to the disc itself, so laying the whole update over the drive made it read
+    // the update's files in places where it expects the disc's.
+    if (!update_data_root_.empty()) {
+      std::error_code ec;
+      const auto xexp = update_data_root_ / "default.xexp";
+      const auto overlay = user_data_root_ / "xexp_overlay";
+      if (std::filesystem::is_regular_file(xexp, ec)) {
+        std::filesystem::create_directories(overlay, ec);
+        std::filesystem::copy_file(xexp, overlay / "default.xexp", std::filesystem::copy_options::overwrite_existing, ec);
+        if (!ec) AddOverlay(fs, "\\GAMEXEXP", overlay);
+      } else {
+        REXLOG_ERROR("No default.xexp in {}: the title update cannot be applied", update_data_root_.string());
+      }
+    }
   }
 
   // The title reads and writes its Xbox HDD cache (cache:\EditEx.cac, cache:\CAR.cac: Create mode and arena data).

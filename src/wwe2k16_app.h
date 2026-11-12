@@ -80,7 +80,11 @@ class Wwe2k16App : public rex::ReXApp {
 #endif
     // Keyboard and mouse as a controller, with the layout of the launcher's Controls window (Banshee's defaults). The
     // launcher passes --keybind_<name>=... for the ones the player changed; those win.
-    rex::cvar::SetFlagByName("mnk_mode", "true");
+    // The launcher's custom soundtrack folder (--xmp_music_dir) is the SDK's xmp_music_folder (patches/sdk10/0002).
+    {
+      const std::string music = rex::cvar::GetFlagByName("xmp_music_dir");
+      if (!music.empty() && !rex::cvar::HasNonDefaultValue("xmp_music_folder")) rex::cvar::SetFlagByName("xmp_music_folder", music);
+    }    rex::cvar::SetFlagByName("mnk_mode", "true");
     struct KeyBind { const char* name; const char* keys; };
     static constexpr KeyBind kBinds[] = {
         {"keybind_a", "L,Return"},        {"keybind_b", "K,Escape"},

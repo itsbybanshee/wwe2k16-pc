@@ -53,7 +53,6 @@
 // (resolution_scale, anisotropic_override, swap_post_effect and present_effect already exist in the Xenos GPU plugin.)
 REXCVAR_DEFINE_BOOL(enable_console, false, "WWE2K16", "Show a console window");
 REXCVAR_DEFINE_STRING(xmp_music_dir, "", "WWE2K16", "Folder of the custom soundtrack");  // not yet
-REXCVAR_DEFINE_INT32(user_language, 1, "WWE2K16", "Xbox 360 language id");  // not yet
 REXCVAR_DEFINE_STRING(pad_remap, "", "WWE2K16", "Controller button remap: FROM=TO pairs");  // not yet
 REXCVAR_DEFINE_BOOL(wwe2k16_mods, true, "WWE2K16", "Read replacement files from the mods folder");
 

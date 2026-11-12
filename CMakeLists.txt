@@ -12,6 +12,8 @@ include(generated_v10/rexglue.cmake)
 
 set(WWE2K16_SOURCES
     src/main.cpp
+    src/exit_menu.cpp
+    src/shadows.cpp
 )
 
 if(WIN32)
@@ -32,9 +34,11 @@ endif()
 option(WWE2K16_NATIVE_RENDERER "Also build wwe2k16_native.exe (native Vulkan renderer)" OFF)
 if(WWE2K16_NATIVE_RENDERER)
     include(cmake/native_renderer.cmake)
-    add_executable(wwe2k16_native WIN32 src/main.cpp res/wwe2k16.rc)
+    add_executable(wwe2k16_native WIN32 ${WWE2K16_SOURCES} res/wwe2k16.rc)
+    target_compile_definitions(wwe2k16_native PRIVATE WWE2K16_TU=1)
     wwe2k16_add_native_renderer(wwe2k16_native)
 endif()
+target_compile_definitions(wwe2k16 PRIVATE WWE2K16_TU=1)
 rexglue_setup_target(wwe2k16 GPU_PLUGINS xenos)
 
 if(WWE2K16_NATIVE_RENDERER)

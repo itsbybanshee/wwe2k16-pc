@@ -155,26 +155,6 @@ index 2f9075b..6cf980d 100644
  
  #if REX_PLATFORM_WIN32
  #include <rex/ui/window_win.h>
-@@ -35,8 +41,8 @@ REXCVAR_DEFINE_INT32(mnk_user_index, 0, "Input", "Controller slot (0-3) for MnK"
- REXCVAR_DEFINE_DOUBLE(mnk_sensitivity, 1.0, "Input", "Mouse sensitivity for right stick")
-     .range(0.01, 10.0);
- 
--REXCVAR_DEFINE_STRING(keybind_a, "L", "Input/Keybinds/Controller", "A button");
--REXCVAR_DEFINE_STRING(keybind_b, "K", "Input/Keybinds/Controller", "B button");
-+REXCVAR_DEFINE_STRING(keybind_a, "L,Return", "Input/Keybinds/Controller", "A button");
-+REXCVAR_DEFINE_STRING(keybind_b, "K,Escape", "Input/Keybinds/Controller", "B button");
- REXCVAR_DEFINE_STRING(keybind_x, "J", "Input/Keybinds/Controller", "X button");
- REXCVAR_DEFINE_STRING(keybind_y, "Space", "Input/Keybinds/Controller", "Y button");
- REXCVAR_DEFINE_STRING(keybind_left_trigger, "Shift", "Input/Keybinds/Controller", "Left trigger");
-@@ -58,7 +64,7 @@ REXCVAR_DEFINE_STRING(keybind_dpad_down, "Down,2", "Input/Keybinds/Controller",
- REXCVAR_DEFINE_STRING(keybind_dpad_left, "Left,3", "Input/Keybinds/Controller", "D-pad left");
- REXCVAR_DEFINE_STRING(keybind_dpad_right, "Right,4", "Input/Keybinds/Controller", "D-pad right");
- REXCVAR_DEFINE_STRING(keybind_back, "Tab", "Input/Keybinds/Controller", "Back button");
--REXCVAR_DEFINE_STRING(keybind_start, "Escape", "Input/Keybinds/Controller", "Start button");
-+REXCVAR_DEFINE_STRING(keybind_start, "Return", "Input/Keybinds/Controller", "Start button");
- REXCVAR_DEFINE_STRING(keybind_guide, "", "Input/Keybinds/Controller", "Guide button");
- 
- namespace rex::input::mnk {
 @@ -86,26 +92,133 @@ bool IsControlKeyDown(const bool (&key_down)[256]) {
           key_down[static_cast<uint16_t>(VirtualKey::kRControl)];
  }

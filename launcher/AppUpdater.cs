@@ -9,7 +9,7 @@ internal sealed record ReleaseInfo(string Version, string Name, string Notes, Ur
 
 internal static class AppUpdater
 {
-    const string Api = "https://api.github.com/repos/itsbybanshee/wwe2k16-pc/releases/latest";
+    const string Api = "https://api.github.com/repos/iMrBurn/wwe2k16-pc/releases/latest";
     static readonly HttpClient Http = CreateClient();
     public static string CurrentVersion => typeof(AppUpdater).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
 

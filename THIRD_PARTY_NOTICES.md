@@ -1,4 +1,4 @@
-# Third-party notices
+﻿# Third-party notices
 
 WWE 2K16 PC is built on the ReXGlue recompilation SDK, which is derived from the Xenia project, plus this
 project's changes in `patches/sdk/`. The licences below require their notices to be kept with the source and
@@ -9,6 +9,13 @@ by any licence in this file. Players supply their own copy of the game.
 
 FFmpeg is used as separate DLLs (avcodec-58.dll, avutil-56.dll) under the LGPL 2.1; its source code is
 available from https://ffmpeg.org and in the ReXGlue SDK.
+
+## This project's own code: GPL-3.0
+
+The code of this fork (the changes and additions by iMrBurn since v2.0.0, the native-renderer port, and the code taken from
+Banshee's WWE 2K16 PC with his agreement) is released under the GNU General Public License v3.0, see `LICENSE`. The
+third-party components below keep their own licences, all of which are compatible with the GPL-3.0 (BSD, MIT, zlib,
+Apache-2.0, LGPL as separate DLLs). Game files, the game's code and assets are not covered.
 
 ## ReXGlue SDK (includes Xenia)
 

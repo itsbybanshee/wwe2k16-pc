@@ -45,6 +45,8 @@
 //      - Decompressed string tables in `ZlibDecompress` (`sub_82BBD158` in TU3 / `sub_82BB4F38` in Vanilla) are scanned
 //        and system console name strings in English, French, Spanish, German, Italian, and Japanese are replaced with "PC".
 
+#include "generated_v10/default/wwe2k16_init.h"
+
 #include <atomic>
 #include <cstdint>
 #include <cstring>
@@ -52,9 +54,6 @@
 
 #include <rex/logging.h>
 #include <rex/memory.h>
-#include <rex/ppc/context.h>
-#include <rex/ppc/function.h>
-#include <rex/ppc/memory.h>
 #include <rex/runtime.h>
 #include <rex/ui/window.h>
 #include <rex/ui/windowed_app_context.h>
@@ -109,14 +108,14 @@
 #define WWE2K16_ADDR_DialogMgr 0x83769724u
 #endif
 
-extern "C" PPC_FUNC(WWE2K16_IMP_GetMenuItemDesc);
-extern "C" PPC_FUNC(WWE2K16_FN_InitDialogReq);
-extern "C" PPC_FUNC(WWE2K16_FN_ShowDialog);
-extern "C" PPC_FUNC(WWE2K16_IMP_ShowDialog);
-extern "C" PPC_FUNC(WWE2K16_FN_EnsureDialogManager);
-extern "C" PPC_FUNC(WWE2K16_FN_PollDialogResult);
-extern "C" PPC_FUNC(WWE2K16_FN_GetDialogResult);
-extern "C" PPC_FUNC(WWE2K16_IMP_ResetDialog);
+REX_EXTERN(WWE2K16_IMP_GetMenuItemDesc);
+REX_EXTERN(WWE2K16_FN_InitDialogReq);
+REX_EXTERN(WWE2K16_FN_ShowDialog);
+REX_EXTERN(WWE2K16_IMP_ShowDialog);
+REX_EXTERN(WWE2K16_FN_EnsureDialogManager);
+REX_EXTERN(WWE2K16_FN_PollDialogResult);
+REX_EXTERN(WWE2K16_FN_GetDialogResult);
+REX_EXTERN(WWE2K16_IMP_ResetDialog);
 
 namespace {
 
@@ -210,8 +209,8 @@ uint32_t RawMenuItemDesc(PPCContext& ctx, uint8_t* base, uint32_t menu_obj, uint
 }
 
 uint32_t RawMenuItemStringId(uint8_t* base, uint32_t desc) {
-  if (!desc || PPC_LOAD_U32(desc) == 0xFFFFFFFFu) return 0;
-  return PPC_LOAD_U32(desc + 24);
+  if (!desc || REX_LOAD_U32(desc) == 0xFFFFFFFFu) return 0;
+  return REX_LOAD_U32(desc + 24);
 }
 
 // Move the adjacent descriptors by one row: WWE Shop's descriptor (renamed EXIT) goes last,
@@ -297,8 +296,8 @@ void RequestCleanClose() {
 
 // --- 1. String table patch ("WWE SHOP" -> "EXIT", "Xbox 360 console" -> "PC") --------------------------------------
 
-extern "C" PPC_FUNC(WWE2K16_IMP_ZlibDecompress);
-extern "C" PPC_FUNC(WWE2K16_FN_ZlibDecompress) {
+REX_EXTERN(WWE2K16_IMP_ZlibDecompress);
+extern "C" REX_FUNC(WWE2K16_FN_ZlibDecompress) {
   const uint32_t dst = ctx.r3.u32;
   const uint32_t dst_cap = ctx.r4.u32;
   WWE2K16_IMP_ZlibDecompress(ctx, base);
@@ -361,10 +360,10 @@ extern "C" PPC_FUNC(WWE2K16_FN_ZlibDecompress) {
 
 // The retired Xbox Live services warning is a normal title dialog. Suppress only that
 // dialog by its localized message ID; leave save checks and other dialogs alone.
-extern "C" PPC_FUNC(WWE2K16_IMP_ShowDialog);
-extern "C" PPC_FUNC(WWE2K16_FN_ShowDialog) {
+REX_EXTERN(WWE2K16_IMP_ShowDialog);
+extern "C" REX_FUNC(WWE2K16_FN_ShowDialog) {
   const uint32_t req_ea = ctx.r4.u32;
-  const uint32_t message_id = req_ea ? PPC_LOAD_U32(req_ea + 4) : 0;
+  const uint32_t message_id = req_ea ? REX_LOAD_U32(req_ea + 4) : 0;
   if (message_id && (message_id == kXboxLiveOfflineNoticeStringId ||
                      message_id == g_xbox_live_alert_string_id.load())) {
     REXLOG_INFO("[wwe2k16-menu] suppressed retired Xbox Live offline notice (string {})", message_id);
@@ -376,7 +375,7 @@ extern "C" PPC_FUNC(WWE2K16_FN_ShowDialog) {
 
 // --- 2. Menu descriptor hook: completely suppress Xbox Live / middle entry at descriptor lookup ---------------------
 
-extern "C" PPC_FUNC(WWE2K16_FN_GetMenuItemDesc) {
+extern "C" REX_FUNC(WWE2K16_FN_GetMenuItemDesc) {
   const uint32_t menu_obj = ctx.r3.u32;
   const uint32_t group_id = ctx.r4.u32;
   const uint32_t item_id = ctx.r5.u32;
@@ -392,8 +391,8 @@ extern "C" PPC_FUNC(WWE2K16_FN_GetMenuItemDesc) {
 
 // --- 3. Menu slot visibility hook: hide middle Xbox Live slot, force bottom EXIT visible ---------------------------
 
-extern "C" PPC_FUNC(WWE2K16_IMP_CheckMenuItemVisible);
-extern "C" PPC_FUNC(WWE2K16_FN_CheckMenuItemVisible) {
+REX_EXTERN(WWE2K16_IMP_CheckMenuItemVisible);
+extern "C" REX_FUNC(WWE2K16_FN_CheckMenuItemVisible) {
   const uint32_t menu_obj = ctx.r3.u32;
   const uint32_t group_id = ctx.r4.u32;
   const uint32_t item_id = ctx.r5.u32;
@@ -415,8 +414,8 @@ extern "C" PPC_FUNC(WWE2K16_FN_CheckMenuItemVisible) {
 
 // --- 4. Menu slot brightness override (render bottom "EXIT" at full white brightness) -------------------------------
 
-extern "C" PPC_FUNC(WWE2K16_IMP_SetupMenuSlot);
-extern "C" PPC_FUNC(WWE2K16_FN_SetupMenuSlot) {
+REX_EXTERN(WWE2K16_IMP_SetupMenuSlot);
+extern "C" REX_FUNC(WWE2K16_FN_SetupMenuSlot) {
   const uint32_t menu_obj = ctx.r3.u32;
   const uint32_t col_idx = ctx.r4.u32;
   const uint32_t group_id = ctx.r6.u32;
@@ -426,15 +425,15 @@ extern "C" PPC_FUNC(WWE2K16_FN_SetupMenuSlot) {
 
   const uint32_t str_id = GetMenuItemStringId(ctx, base, menu_obj, group_id, item_slot);
   if (str_id == kWweShopStringId) {
-    const uint32_t page = PPC_LOAD_U32(menu_obj + 268);
+    const uint32_t page = REX_LOAD_U32(menu_obj + 268);
     const uint32_t col_base = menu_obj + (page * 9u + col_idx) * 588u + 856u;
-    PPC_STORE_U32(col_base + (item_slot + 87u) * 4u, kFloatOneBits);
+    REX_STORE_U32(col_base + (item_slot + 87u) * 4u, kFloatOneBits);
   }
 }
 
 // Resolve the real action attached to the displayed (reordered) main-menu row.
-extern "C" PPC_FUNC(WWE2K16_IMP_ResolveMenuAction);
-extern "C" PPC_FUNC(WWE2K16_FN_ResolveMenuAction) {
+REX_EXTERN(WWE2K16_IMP_ResolveMenuAction);
+extern "C" REX_FUNC(WWE2K16_FN_ResolveMenuAction) {
   const uint32_t menu_obj = ctx.r3.u32;
   const uint32_t group_id = ctx.r4.u32;
   const uint32_t item_id = ctx.r5.u32;
@@ -449,8 +448,8 @@ extern "C" PPC_FUNC(WWE2K16_FN_ResolveMenuAction) {
 
 // --- 5. Confirm press handler (prompt "Are you sure you want to quit the game?" with Yes/No [A/B]) -------------------
 
-extern "C" PPC_FUNC(WWE2K16_IMP_ConfirmCheckAndPopup);
-extern "C" PPC_FUNC(WWE2K16_FN_ConfirmCheckAndPopup) {
+REX_EXTERN(WWE2K16_IMP_ConfirmCheckAndPopup);
+extern "C" REX_FUNC(WWE2K16_FN_ConfirmCheckAndPopup) {
   const uint32_t menu_obj = ctx.r3.u32;
   const uint32_t group_id = ctx.r4.u32;
   const uint32_t item_id = ctx.r5.u32;
@@ -469,7 +468,7 @@ extern "C" PPC_FUNC(WWE2K16_FN_ConfirmCheckAndPopup) {
     ctx.r4.s64 = 64;
     WWE2K16_FN_EnsureDialogManager(ctx, base);
 
-    const uint32_t dialog_mgr = PPC_LOAD_U32(WWE2K16_ADDR_DialogMgr);
+    const uint32_t dialog_mgr = REX_LOAD_U32(WWE2K16_ADDR_DialogMgr);
     if (!dialog_mgr) {
       REXLOG_WARN("[wwe2k16-menu] DialogManager not initialized; falling back to direct close");
       RequestCleanClose();
@@ -492,12 +491,12 @@ extern "C" PPC_FUNC(WWE2K16_FN_ConfirmCheckAndPopup) {
     WWE2K16_FN_InitDialogReq(ctx, base);
 
     // 3. Configure dialog request:
-    PPC_STORE_U32(req_ea + 0, 2);                      // dialog_type: 2 = Yes / No confirmation dialog
-    PPC_STORE_U32(req_ea + 4, 30721);                  // message_string_id
-    PPC_STORE_U32(req_ea + 8, text_ea);                // custom message string: "Are you sure you want to quit the game?"
-    PPC_STORE_U32(req_ea + 16, 0);                     // sub-type
-    PPC_STORE_U32(req_ea + 20, 0xFFFFFFFFu);           // player_idx: -1 allows any controller to interact
-    PPC_STORE_U32(req_ea + 28, 0);                     // default button: 0 (Yes / A)
+    REX_STORE_U32(req_ea + 0, 2);                      // dialog_type: 2 = Yes / No confirmation dialog
+    REX_STORE_U32(req_ea + 4, 30721);                  // message_string_id
+    REX_STORE_U32(req_ea + 8, text_ea);                // custom message string: "Are you sure you want to quit the game?"
+    REX_STORE_U32(req_ea + 16, 0);                     // sub-type
+    REX_STORE_U32(req_ea + 20, 0xFFFFFFFFu);           // player_idx: -1 allows any controller to interact
+    REX_STORE_U32(req_ea + 28, 0);                     // default button: 0 (Yes / A)
 
     // 4. Open native modal dialog
     ctx.r3.u64 = dialog_mgr;
@@ -520,8 +519,8 @@ extern "C" PPC_FUNC(WWE2K16_FN_ConfirmCheckAndPopup) {
 
 // --- 6. Dialog tick hook (polls user response every frame; instantly exits on Yes [A] without waiting for B) --------
 
-extern "C" PPC_FUNC(WWE2K16_IMP_DialogUpdate);
-extern "C" PPC_FUNC(WWE2K16_FN_DialogUpdate) {
+REX_EXTERN(WWE2K16_IMP_DialogUpdate);
+extern "C" REX_FUNC(WWE2K16_FN_DialogUpdate) {
   WWE2K16_IMP_DialogUpdate(ctx, base);
 
   if (g_exit_dialog_pending.load()) {
@@ -533,7 +532,7 @@ extern "C" PPC_FUNC(WWE2K16_FN_DialogUpdate) {
       g_exit_dialog_pending.store(false);
       REXLOG_INFO("[wwe2k16-menu] Exit dialog status polled in DialogUpdate: {}", status);
 
-      const uint32_t dialog_mgr = PPC_LOAD_U32(WWE2K16_ADDR_DialogMgr);
+      const uint32_t dialog_mgr = REX_LOAD_U32(WWE2K16_ADDR_DialogMgr);
       if (dialog_mgr) {
         PPCContext reset_ctx = ctx;
         reset_ctx.r3.u64 = dialog_mgr;
@@ -552,8 +551,8 @@ extern "C" PPC_FUNC(WWE2K16_FN_DialogUpdate) {
 
 // --- 7. Dialog dismissal fallback hook (catches cancel / back button [B] dismissals) --------------------------------
 
-extern "C" PPC_FUNC(WWE2K16_IMP_ResetDialog);
-extern "C" PPC_FUNC(WWE2K16_FN_ResetDialog) {
+REX_EXTERN(WWE2K16_IMP_ResetDialog);
+extern "C" REX_FUNC(WWE2K16_FN_ResetDialog) {
   const uint32_t dialog_mgr = ctx.r3.u32;
 
   if (g_exit_dialog_pending.exchange(false)) {
@@ -561,7 +560,7 @@ extern "C" PPC_FUNC(WWE2K16_FN_ResetDialog) {
     check_ctx.r3.u64 = dialog_mgr;
     WWE2K16_FN_GetDialogResult(check_ctx, base);
     const uint32_t result = check_ctx.r3.u32;
-    const uint32_t raw_sel = dialog_mgr ? PPC_LOAD_U32(dialog_mgr + 64) : 0xFFFFFFFFu;
+    const uint32_t raw_sel = dialog_mgr ? REX_LOAD_U32(dialog_mgr + 64) : 0xFFFFFFFFu;
 
     REXLOG_INFO("[wwe2k16-menu] Exit confirmation dialog dismissed via ResetDialog: result={}, raw_sel=0x{:X}",
                 result, raw_sel);

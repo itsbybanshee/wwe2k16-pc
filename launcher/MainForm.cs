@@ -488,7 +488,9 @@ public sealed class MainForm : Form
         // because delta-patching default.xexp on an already-patched XEX causes a signature mismatch crash.
         // The title update build is used whenever the update is installed (no Vanilla / Updated choice).
         bool useTu = _tu.Ready || gameIsAlreadyTu;
-        string exe = useTu ? _paths.TitleUpdateExe : _paths.GameExe;
+        // The native renderer branch builds from the title update's code only: without it the game cannot start.
+        if (!useTu) { Toast("Install the title update first (Title update button): this version needs it.", true); return; }
+        string exe = _paths.TitleUpdateExe;
         if (useTu && !File.Exists(_paths.TitleUpdateExe))
         {
             Toast("wwe2k16_tu.exe was not found. Build the title update first.", true);

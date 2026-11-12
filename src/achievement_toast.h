@@ -34,7 +34,6 @@ class AchievementToasts {
   void SetSound(std::vector<uint8_t> wav) { sound_ = std::move(wav); }
 
  private:
-  friend class AchievementToastDialog;
   struct NativeState;
 
   struct Toast {

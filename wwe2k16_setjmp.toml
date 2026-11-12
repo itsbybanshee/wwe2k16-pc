@@ -1,0 +1,5 @@
+﻿# The CRT's setjmp / longjmp of WWE 2K16 with title update 3 (jmp_buf in r3). Recompiled as plain code, setjmp returns the
+# jmp_buf address and error paths (libjpeg decodes) misbehave; the codegen replaces calls to them. Retail addresses are
+# 0x831EFB10 / 0x831EF7F0; found by tools/find_functions.py.
+setjmp_address = 0x831F8800
+longjmp_address = 0x831F84E0

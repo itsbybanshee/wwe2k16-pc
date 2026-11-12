@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -50,16 +51,48 @@ HANDLE FindThreadByName(const wchar_t* name) {
   return found;
 }
 
+// Walks the stack of a suspended thread. A thread suspended mid-syscall or inside code without unwind data can hand
+// back a context that makes the unwinder (or the raw-stack fallback) fault, so any exception just ends the walk.
+// Kept free of C++ objects so __try is allowed, and it must not allocate (the suspended thread may hold the heap lock).
+int WalkStack(CONTEXT context, uint64_t image, uint64_t* frames, int max_depth) {
+  int depth = 0;
+  __try {
+    while (depth < max_depth && context.Rip) {
+      DWORD64 base = 0;
+      PRUNTIME_FUNCTION function = RtlLookupFunctionEntry(context.Rip, &base, nullptr);
+      frames[depth++] = function && base == image ? image + function->BeginAddress : context.Rip;
+      if (!function) {
+        context.Rip = *reinterpret_cast<DWORD64*>(context.Rsp);
+        context.Rsp += 8;
+      } else {
+        void* handler_data = nullptr;
+        DWORD64 establisher = 0;
+        RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, context.Rip, function, &context, &handler_data, &establisher,
+                         nullptr);
+      }
+    }
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+  }
+  return depth;
+}
+
+uint64_t g_image_size = 0;
+
+bool InImage(uint64_t pc, uint64_t image) { return pc >= image && pc < image + g_image_size; }
+
 void Run() {
   HANDLE thread = nullptr;
   while (!(thread = FindThreadByName(L"GPU Commands"))) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   const uint64_t image = reinterpret_cast<uint64_t>(GetModuleHandleW(nullptr));
+  const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(image);
+  g_image_size = reinterpret_cast<const IMAGE_NT_HEADERS64*>(image + dos->e_lfanew)->OptionalHeader.SizeOfImage;
   REXLOG_INFO("[cp-profile] sampling \"GPU Commands\", image base {:X}", image);
 
   constexpr int kMaxDepth = 24;
-  std::unordered_map<uint32_t, uint32_t> self, total;
+  std::unordered_map<uint32_t, uint32_t> self, total, ext_caller;
+  std::unordered_map<std::string, uint32_t> ext_module;
   uint32_t samples = 0;
   auto window_start = std::chrono::steady_clock::now();
   for (;;) {
@@ -68,29 +101,30 @@ void Run() {
     if (SuspendThread(thread) != DWORD(-1)) {
       CONTEXT context{};
       context.ContextFlags = CONTEXT_FULL;
-      if (GetThreadContext(thread, &context)) {
-        // No allocation while the thread is suspended (it may hold the heap lock).
-        while (depth < kMaxDepth && context.Rip) {
-          DWORD64 base = 0;
-          PRUNTIME_FUNCTION function = RtlLookupFunctionEntry(context.Rip, &base, nullptr);
-          frames[depth++] = function && base == image ? image + function->BeginAddress : context.Rip;
-          if (!function) {
-            context.Rip = *reinterpret_cast<DWORD64*>(context.Rsp);
-            context.Rsp += 8;
-          } else {
-            void* handler_data = nullptr;
-            DWORD64 establisher = 0;
-            RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, context.Rip, function, &context, &handler_data, &establisher,
-                             nullptr);
-          }
-        }
-      }
+      if (GetThreadContext(thread, &context)) depth = WalkStack(context, image, frames, kMaxDepth);
       ResumeThread(thread);
     }
     if (depth) {
       ++samples;
       auto offset = [&](uint64_t pc) { return pc >= image ? uint32_t(std::min<uint64_t>(pc - image, UINT32_MAX)) : 0u; };
       ++self[offset(frames[0])];
+      // Time outside the image (driver, ntdll, ...): count it by module and by the first image function above it.
+      if (!InImage(frames[0], image)) {
+        PVOID module_base = nullptr;
+        RtlPcToFileHeader(reinterpret_cast<PVOID>(frames[0]), &module_base);
+        char name[MAX_PATH] = "?";
+        if (module_base && GetModuleFileNameA(static_cast<HMODULE>(module_base), name, MAX_PATH)) {
+          const char* slash = std::strrchr(name, '\\');
+          if (slash) std::memmove(name, slash + 1, std::strlen(slash));
+        }
+        ++ext_module[fmt::format("{}+{:X}", name, frames[0] - reinterpret_cast<uint64_t>(module_base))];
+        for (int i = 1; i < depth; ++i) {
+          if (InImage(frames[i], image)) {
+            ++ext_caller[offset(frames[i])];
+            break;
+          }
+        }
+      }
       for (int i = 0; i < depth; ++i) {
         const uint32_t o = offset(frames[i]);
         bool seen = false;
@@ -112,8 +146,18 @@ void Run() {
       };
       REXLOG_INFO("[cp-profile] samples={} self:{}", samples, top(self, 25));
       REXLOG_INFO("[cp-profile] samples={} total:{}", samples, top(total, 40));
+      // External time: module+offset of the sampled pc, and the image function that called into it.
+      std::vector<std::pair<std::string, uint32_t>> modules(ext_module.begin(), ext_module.end());
+      std::sort(modules.begin(), modules.end(), [](auto& a, auto& b) { return a.second > b.second; });
+      if (modules.size() > 15) modules.resize(15);
+      std::string ext;
+      for (auto& [name, c] : modules) ext += fmt::format(" {}:{}", name, c);
+      REXLOG_INFO("[cp-profile] samples={} ext-pc:{}", samples, ext);
+      REXLOG_INFO("[cp-profile] samples={} ext-caller:{}", samples, top(ext_caller, 20));
       self.clear();
       total.clear();
+      ext_module.clear();
+      ext_caller.clear();
       samples = 0;
       window_start = now;
     }

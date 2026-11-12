@@ -79,7 +79,7 @@ def main() -> None:
     lic.mkdir()
     for f in (ROOT / "third_party" / "licenses").glob("*"):
         shutil.copy2(f, lic / f.name)
-    for f in ("THIRD_PARTY_NOTICES.md",):
+    for f in ("THIRD_PARTY_NOTICES.md", "LICENSE"):
         shutil.copy2(ROOT / f, lic / f)
     reblue = ROOT / "src" / "reblue" / "LICENSE.reblue"
     if reblue.exists():

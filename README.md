@@ -5,6 +5,7 @@
 >
 > New in v2.0.0: native renderer, upscaler (the launcher's "fsr" option is a Lanczos-based upscaler, not AMD FSR), automatic graphics profile for weak GPUs, pipeline seed against first-run stutter, ported achievement pop-up.
 > Known limits: screenshots are window-sized; rare crashes may remain (please open an issue with your log). Build notes: `docs/NATIVE_PORT_PLAN.md`, `tools/build-v10.ps1`.
+> Licence: GPL-3.0 (see `LICENSE`).
 > Original text below is Banshee's (v1.x); parts about FSR refer to his Xenos build.
 
 WWE 2K16 PC recompilation with a modern launcher, graphics options, non-destructive mod support, custom soundtrack, achievements and more.

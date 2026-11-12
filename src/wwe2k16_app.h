@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <memory>
 #include <thread>
+#include <vector>
 #include <string>
 #include <system_error>
 
@@ -33,6 +34,8 @@
 #include <rex/system/kernel_state.h>
 
 #include <rex/ui/keybinds.h>
+#include "achievement_sound.h"
+#include "achievements_summary.h"
 #include "display_refresh_rate.h"
 #include "fps_overlay.h"
 #include "script_input.h"
@@ -223,6 +226,20 @@ class Wwe2k16App : public rex::ReXApp {
     });
   }
 
+  // The title's achievement table is readable once the module is set up for launch. Writes the list the launcher shows
+  // (with the icons) and again after each unlock; the unlock also plays Banshee's sound (achievement.ogg beside the exe).
+  // The SDK shows its own notification and keeps the unlock state (userdata\achievements\<TitleId>.toml).
+  void OnPostLaunchModule(rex::system::XThread* thread) override {
+    (void)thread;
+    auto* kernel = runtime() ? runtime()->kernel_state() : nullptr;
+    if (!kernel) return;
+    wwe2k16::WriteAchievementSummary(*kernel, user_data_root_);
+    achievement_wav_ = wwe2k16::LoadOggAsWav(rex::filesystem::GetExecutableFolder() / "achievement.ogg");
+    kernel->RegisterAchievementUnlockCallback([this, kernel](const rex::system::AchievementInfo&) {
+      if (!achievement_wav_.empty()) wwe2k16::PlayWavAsync(achievement_wav_);
+      wwe2k16::WriteAchievementSummary(*kernel, user_data_root_);
+    });
+  }
   void OnShutdown() override {
     rex::ui::UnregisterBind("bind_toggle_fullscreen");
     fps_overlay_.Detach();
@@ -316,6 +333,7 @@ class Wwe2k16App : public rex::ReXApp {
   }
 
   wwe2k16::FpsOverlay fps_overlay_;
+  std::vector<uint8_t> achievement_wav_;
   wwe2k16::DisplayRefreshRate display_refresh_rate_;
 
 #if defined(_WIN32)

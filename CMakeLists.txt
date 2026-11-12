@@ -3,7 +3,7 @@
 # The v0.7.3 build of Banshee's version is on the main branch.
 
 cmake_minimum_required(VERSION 3.25)
-project(wwe2k16 LANGUAGES CXX)
+project(wwe2k16 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,6 +18,9 @@ set(WWE2K16_SOURCES
     src/test_input.cpp
     src/fps_overlay.cpp
     src/display_refresh_rate.cpp
+    src/achievement_sound.cpp
+    src/achievements_summary.cpp
+    third_party/stb_vorbis/stb_vorbis.c
 )
 
 if(WIN32)

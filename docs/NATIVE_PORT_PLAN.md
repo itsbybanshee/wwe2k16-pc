@@ -78,3 +78,13 @@ Bring-up notes: the title update must NOT be laid over the disc image (the loade
 `default.xexp` is. `plume` and `reblue-XenosRecomp` come from the WWE '12 checkout (`native-deps/`), reset to the commits
 WWE 2K15 pins and patched with its patches (plume's header has CRLF line endings: apply `plume-pipeline-cache.patch` with
 `--ignore-whitespace`).
+
+## First-play stutter: pipeline seed (2026-11-12)
+
+The native renderer builds a Vulkan pipeline the first time a draw state appears; on an empty cache that happens on the
+render thread (about 47 ms each on the RTX 5070: a user session had 45 in 4 minutes, a worse one 136, worst frame 719 ms).
+`pso_recorder` writes every state it had to build to `userdata\cache\pipelines.bin` and replays them in the background at the
+next start; a shipped `pipelines_seed.w12p` beside the exe does the same for a first start. `res/pipelines_seed.w12p` holds
+209 states (scripted run + a user's session; states and hashes only, no game data). With a fresh cache and the seed, the same
+scripted run had 2 render-thread compiles instead of 45+. To grow it: play more modes, then
+`python -I tools/merge_pso_seed.py res/pipelines_seed.w12p <old seed> <userdata\cache\pipelines.bin ...>`.

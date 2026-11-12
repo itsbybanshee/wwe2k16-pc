@@ -35,8 +35,10 @@
 
 #include <rex/ui/keybinds.h>
 #include "achievement_sound.h"
+#include "achievement_toast.h"
 #include "achievements_summary.h"
 #include "display_refresh_rate.h"
+#include "device_profile.h"
 #include "launcher_settings.h"
 #include "fps_overlay.h"
 #include "screenshot.h"
@@ -225,6 +227,9 @@ class Wwe2k16App : public rex::ReXApp {
     if (window()) display_refresh_rate_.SwitchTo60Hz(window()->GetNativeWindowHandle());
 #endif
     fps_overlay_.Attach(drawer);
+    // Banshee's achievement pop-up (its own click-through window; works with either renderer). The SDK's is switched off.
+    achievement_toasts_.Attach(&app_context(), drawer, window() ? window()->GetNativeWindowHandle() : nullptr);
+    achievement_toasts_.SetSound(wwe2k16::LoadOggAsWav(rex::filesystem::GetExecutableFolder() / "achievement.ogg"));
     // Test aid: WWE2K16_TEST_SCREENSHOT=<seconds> takes one screenshot after that delay (for automated runs).
     if (const char* delay = std::getenv("WWE2K16_TEST_SCREENSHOT"); delay && *delay && window()) {
       void* handle = window()->GetNativeWindowHandle();
@@ -252,12 +257,18 @@ class Wwe2k16App : public rex::ReXApp {
     if (!kernel) return;
     wwe2k16::WriteAchievementSummary(*kernel, user_data_root_);
     achievement_wav_ = wwe2k16::LoadOggAsWav(rex::filesystem::GetExecutableFolder() / "achievement.ogg");
-    kernel->RegisterAchievementUnlockCallback([this, kernel](const rex::system::AchievementInfo&) {
-      if (!achievement_wav_.empty()) wwe2k16::PlayWavAsync(achievement_wav_);
-      wwe2k16::WriteAchievementSummary(*kernel, user_data_root_);
+    kernel->RegisterAchievementUnlockCallback([this, kernel](const rex::system::AchievementInfo& a) {
+      wwe2k16::WriteAchievementSummary(*kernel, user_data_root_);  // also saves the icon PNGs used by the pop-up
+      const auto icon = user_data_root_ / "achievements" / fmt::format("{:08X}", kernel->title_id()) /
+                        fmt::format("{}.png", a.image_id);
+      achievement_toasts_.Push(a.label, a.description, rex::path_to_utf8(icon));
     });
   }
+  std::unique_ptr<rex::ui::AchievementNotificationDialog> CreateAchievementNotificationDialog() override {
+    return nullptr;
+  }
   void OnShutdown() override {
+    achievement_toasts_.Detach();
     rex::ui::UnregisterBind("bind_toggle_fullscreen");
     rex::ui::UnregisterBind("bind_screenshot");
     fps_overlay_.Detach();
@@ -312,10 +323,22 @@ class Wwe2k16App : public rex::ReXApp {
     };
     // Internal resolution: the launcher's 720 / 1080 / 1440 / 2160 are 1x / 2x / 2x / 3x of 720p (FSR is not used here:
     // the renderer is cheap enough to draw at the output resolution).
-    const std::string res = env("WWE2K16_RESOLUTION");
+    // With the launcher's "fsr" upscaler the game is drawn one step lower (1080 / 1440 -> 720p, 2160 -> 1440p) and the
+    // present pass scales it up (svr_upscaler).
+    std::string res = env("WWE2K16_RESOLUTION");
+    bool upscale = env("WWE2K16_UPSCALE") == "fsr" || env("WWE2K16_UPSCALE") == "fsr1";
+    // No resolution chosen (or "auto"): pick from the graphics card (device_profile.cpp).
+    if (res.empty() || res == "auto") {
+      const auto profile = wwe2k16::DetectDeviceProfile();
+      res = profile.resolution;
+      set("bd_anisotropy", std::to_string(profile.anisotropy));
+      set("svr_fxaa", std::to_string(profile.fxaa));
+      upscale = upscale || profile.upscale;
+    }
+    if (upscale) set("svr_upscaler", "1");
     if (res == "720") set("svr_render_scale", "1");
-    else if (res == "1080" || res == "1440") set("svr_render_scale", "2");
-    else if (res == "2160") set("svr_render_scale", "3");
+    else if (res == "1080" || res == "1440") set("svr_render_scale", upscale ? "1" : "2");
+    else if (res == "2160") set("svr_render_scale", upscale ? "2" : "3");
     // Anisotropic filtering: 0 off, 3 = 4x, 5 = 16x.
     const std::string aniso = env("WWE2K16_ANISO");
     if (aniso == "0") set("bd_anisotropy", "0");
@@ -352,6 +375,7 @@ class Wwe2k16App : public rex::ReXApp {
 
   wwe2k16::FpsOverlay fps_overlay_;
   std::vector<uint8_t> achievement_wav_;
+  wwe2k16::AchievementToasts achievement_toasts_;
   wwe2k16::DisplayRefreshRate display_refresh_rate_;
 
 #if defined(_WIN32)

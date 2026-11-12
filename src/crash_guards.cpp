@@ -1,4 +1,4 @@
-﻿// wwe2k16 - guards for game calls that would write through a NULL pointer (title update 3 addresses).
+// wwe2k16 - guards for game calls that would write through a NULL pointer (title update 3 addresses).
 //
 // Without a guard, a write at guest address 0x17B (host guest-base + a small offset) is an access violation that ends the
 // game: a user session crashed 15 s into an entrance (test-pack run of 2026-11-12) in sub_82BF74A0, the CRT memset, called

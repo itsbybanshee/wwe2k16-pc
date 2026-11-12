@@ -22,6 +22,8 @@ set(WWE2K16_SOURCES
     src/achievement_sound.cpp
     src/screenshot.cpp
     src/launcher_settings.cpp
+    src/device_profile.cpp
+    src/achievement_toast.cpp
     src/achievements_summary.cpp
     third_party/stb_vorbis/stb_vorbis.c
 )
@@ -76,5 +78,13 @@ if(WIN32)
         OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/res/wwe2k16.ico)
     if(MSVC)
         target_link_options(wwe2k16 PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+    endif()
+endif()
+
+if(WIN32)
+    # Achievement pop-up (GDI+), screenshots (WIC), device profile (loads dxgi.dll at run time).
+    target_link_libraries(wwe2k16 PRIVATE gdiplus windowscodecs ole32)
+    if(TARGET wwe2k16_native)
+        target_link_libraries(wwe2k16_native PRIVATE gdiplus windowscodecs ole32)
     endif()
 endif()

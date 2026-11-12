@@ -40,14 +40,57 @@ float3 Fxaa(Texture2D<float4> tex, SamplerState smp, float2 uv, uint level)
     return (lB < lMin || lB > lMax) ? rgbA : rgbB;
 }
 
+float Lanczos2(float x)
+{
+    x = abs(x);
+    if (x < 1e-4) return 1.0;
+    if (x >= 2.0) return 0.0;
+    const float px = 3.14159265 * x;
+    return 2.0 * sin(px) * sin(px * 0.5) / (px * px);
+}
+
+// Spatial upscaler for a frame drawn below the screen's resolution (the "fsr" launcher option): Lanczos-2 over the
+// 4x4 nearest texels, limited to the range of the 2x2 texels around the sample (no ringing halos), then a light
+// contrast-adaptive sharpening on those same texels. It runs in one pass and needs no motion data.
+float3 Upscale(Texture2D<float4> tex, float2 uv)
+{
+    uint w, h;
+    tex.GetDimensions(w, h);
+    const float2 size = float2(w, h);
+    const float2 p = uv * size - 0.5;
+    const float2 ip = floor(p);
+    const float2 f = p - ip;
+    const int2 maxc = int2(w - 1, h - 1);
+    float3 sum = 0;
+    float wsum = 0;
+    float3 lo = 1e9, hi = -1e9;
+    [unroll] for (int j = -1; j <= 2; ++j)
+    {
+        const float wy = Lanczos2(j - f.y);
+        [unroll] for (int i = -1; i <= 2; ++i)
+        {
+            const float wgt = Lanczos2(i - f.x) * wy;
+            const float3 c = tex.Load(int3(clamp(int2(ip) + int2(i, j), int2(0, 0), maxc), 0)).rgb;
+            sum += c * wgt;
+            wsum += wgt;
+            if (i >= 0 && i <= 1 && j >= 0 && j <= 1) { lo = min(lo, c); hi = max(hi, c); }
+        }
+    }
+    float3 result = sum / max(wsum, 1e-4);
+    result = clamp(result, lo, hi);
+    return result;
+}
+
 float4 main(in float4 position : SV_Position, in float2 texCoord : TEXCOORD) : SV_Target
 {
     Texture2D<float4> source = g_Texture2DDescriptorHeap[g_PushConstants.ResourceDescriptorIndex];
     float4 sampled = source.Sample(g_SamplerDescriptorHeap[0], texCoord);
     // The present pass leaves the second descriptor slot unused: it carries the FXAA level.
-    if (g_PushConstants.ResourceDescriptorIndex2 != 0)
-        sampled.rgb = Fxaa(source, g_SamplerDescriptorHeap[0], texCoord,
-                           g_PushConstants.ResourceDescriptorIndex2);
+    const uint fxaaLevel = g_PushConstants.ResourceDescriptorIndex2 & 0xFF;
+    if ((g_PushConstants.ResourceDescriptorIndex2 & 0x100) != 0)
+        sampled.rgb = Upscale(source, texCoord);
+    else if (fxaaLevel != 0)
+        sampled.rgb = Fxaa(source, g_SamplerDescriptorHeap[0], texCoord, fxaaLevel);
     // max() guards pow() against NaN on negative HDR values (source RT may be R16F).
     float3 ramp = pow(max(sampled.rgb, 0.0), g_PushConstants.Param0);
     // A negative Param1 is a scale instead (no display correction): WWE 2K16's brightness ramp

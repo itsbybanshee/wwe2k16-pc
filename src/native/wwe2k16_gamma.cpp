@@ -75,3 +75,10 @@ REXCVAR_DEFINE_INT32(svr_fxaa, 0, "SvR", "Edge smoothing (FXAA) on the final ima
     .range(0, 2);
 
 unsigned SvrFxaaLevel() { return unsigned(REXCVAR_GET(svr_fxaa)); }
+
+// Upscaler in the present pass (launcher option "fsr"): when the game is drawn below the window's resolution, the
+// present pass scales it up with an edge-limited Lanczos filter instead of the plain bilinear one.
+REXCVAR_DEFINE_INT32(svr_upscaler, 0, "SvR", "Upscale a low internal resolution to the window size: 0 = off, 1 = on")
+    .range(0, 1);
+
+unsigned SvrUpscalerLevel() { return unsigned(REXCVAR_GET(svr_upscaler)); }

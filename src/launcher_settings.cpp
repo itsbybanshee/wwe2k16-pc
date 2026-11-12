@@ -202,7 +202,8 @@ void ApplyLauncherSettings(rex::PathConfig& paths, bool started_by_launcher) {
   SetIfDefault("fullscreen", is_fullscreen ? "true" : "false");
   SetIfDefault("present_effect", presentEffect);
   SetEnvStrIfUnset("WWE2K16_WINDOW_MODE", window_mode);
-  SetEnvStrIfUnset("WWE2K16_RESOLUTION", resolution);
+  // No saved resolution (or "auto"): the game picks one from the graphics card (device_profile.cpp).
+  SetEnvStrIfUnset("WWE2K16_RESOLUTION", (s.count("Resolution") && s.at("Resolution") != "auto") ? resolution : "auto");
   SetEnvStrIfUnset("WWE2K16_UPSCALE", upscaler);
 
   // Frame pacing switches (read from the environment by wwe2k16_app.h / frame_rate.cpp).

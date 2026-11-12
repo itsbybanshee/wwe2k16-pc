@@ -1,0 +1,43 @@
+# Reject texture fetch constants with the "invalid" type, as the console does. Accepting them
+# drew stale textures (a WrestleMania XXX sign in other arenas, black patches on skin, red-tinted
+# crowds in victory scenes). The SDK patch rexglue-sdk-texture-fetch-log-once.patch logs each
+# distinct rejected constant once, which removes the log flood this option used to avoid.
+gpu_allow_invalid_fetch_constants = false
+
+# Keep Vulkan's automatic device selection. On NVIDIA Optimus laptops the
+# executable requests the high-performance adapter through NvOptimusEnablement.
+vulkan_device = -1
+
+# Compile shaders asynchronously so first-use pipelines do not stall the game.
+async_shader_compilation = true
+
+# Apply the NVIDIA alpha-test epsilon to Vulkan to reduce edge flicker.
+use_fuzzy_alpha_epsilon = true
+
+# D3D12 hung on this title; use the Vulkan backend from the same Xenos plugin.
+gpu_backend = "vulkan"
+
+# Avoid a sync wait forcing slow frame-rate steps when the emulator cannot hold 60 FPS.
+gpu_vsync = false
+
+# WWE 2K16 (Banshee's measurements, v0.7.3): "fbo" (host render targets) is the fast path and was the default there. 2K15 uses "auto"\n# because of entrance black frames; try "auto" if 2K16 shows them.\n# "auto": emulate EDRAM with fragment shader interlock (FSI), except on AMD GPUs, which use host
+# render targets. FSI fixed the entrance black frames of October 2026 (the host path no longer
+# shows them since), and costs ~1.6x GPU time on NVIDIA; AMD drivers make it 3-4x slower than
+# the host path (2-10 fps matches on an RX 6750 XT, issue #3). "fsi" forces FSI, any other value
+# forces host render targets. GPUs without VK_EXT_fragment_shader_interlock always use the host path.
+render_target_path_vulkan = "fbo"
+
+# Superstar Threads (and created superstars) build attire and skin textures on the GPU, then the
+# CPU reads them back to compress them in DXT. Without readback it compressed stale memory:
+# attire in scrambled colour bands. "full" copies each resolve back at once; the SDK patch
+# rexglue-sdk-readback-resolve.patch limits it to these formats (k_8, k_8_8_8_8, k_4_4_4_4) and
+# skips 16:9 screen-shaped targets (by shape: a 1024x1024 attire level 0 must be read back, or
+# close-ups stay scrambled) and targets redrawn in 60 frames in a row (about 38 per frame in a
+# match, GPU-only work), so matches stay at 60 FPS.
+readback_resolve = "full"
+readback_resolve_formats = "2,6,15"
+readback_resolve_repeat_limit = 60
+
+# Present without tearing: the SDK prefers the "immediate" mode (no vertical sync, visible tears).
+# Mailbox keeps latency low without tearing. The launcher's vertical sync box sets this.
+vulkan_allow_present_mode_immediate = false

@@ -1,18 +1,20 @@
-# ReXGlue v0.10.0 manifest for the native renderer branch (docs/NATIVE_PORT_PLAN.md). The v0.7.3 build keeps using
-# wwe2k16_config.toml; both read the same function lists in config/.
+﻿# ReXGlue v0.10.0 manifest for the native renderer branch (docs/NATIVE_PORT_PLAN.md).
+# Like WWE 2K15 PC, this branch builds from the title-update-patched image only (WWE 2K16 TU3, 3.0.5.0): game_tu/ holds
+# default.xex with default.xexp beside it (tools/build-tu.ps1 prepares it). The v0.7.3 build on main keeps using
+# wwe2k16_config.toml and wwe2k16_tu_config.toml; all read the function lists of config/ and config_tu/.
 
 [project]
 name = "wwe2k16"
 sdk_version = "0.10.0"
-game_root = "game"
+game_root = "game_tu"
 
 [entrypoint]
-file_path = "game/default.xex"
+file_path = "game_tu/default.xex"
 out_directory_path = "generated_v10/default"
 includes = [
     "wwe2k16_setjmp.toml",
-    "config/functions.toml",
-    "config/functions_fptrs.toml",
-    "config/functions_thunks.toml",
-    "config/hooks.toml",
+    "config_tu/functions.toml",
+    "config_tu/functions_fptrs.toml",
+    "config_tu/functions_thunks.toml",
+    "config_tu/hooks.toml",
 ]

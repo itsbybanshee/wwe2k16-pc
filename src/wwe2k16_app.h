@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <thread>
 #include <string>
 #include <system_error>
 
@@ -31,6 +32,9 @@
 #include <rex/runtime.h>
 #include <rex/system/kernel_state.h>
 
+#include <rex/ui/keybinds.h>
+#include "display_refresh_rate.h"
+#include "fps_overlay.h"
 #include "script_input.h"
 
 #include <imgui.h>
@@ -193,6 +197,34 @@ class Wwe2k16App : public rex::ReXApp {
     }
   }
 
+  void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
+#if defined(_WIN32)
+    SetupWindowMode();
+    // Keep the guest update clock steady on high refresh monitors: the game's monitor runs at 60 Hz while it plays.
+    if (window()) display_refresh_rate_.SwitchTo60Hz(window()->GetNativeWindowHandle());
+#endif
+    fps_overlay_.Attach(drawer);
+    rex::ui::RegisterBind("bind_toggle_fullscreen", "F11", "Toggle fullscreen / windowed", [this] {
+#if defined(_WIN32)
+      ToggleWindowMode();
+#else
+      if (auto* w = window()) w->SetFullscreen(!w->IsFullscreen());
+#endif
+    });
+  }
+
+  void OnShutdown() override {
+    rex::ui::UnregisterBind("bind_toggle_fullscreen");
+    fps_overlay_.Detach();
+#if defined(_WIN32)
+    display_refresh_rate_.Restore();
+    // A guest thread blocked in a kernel wait can keep the process alive after the window is gone: leave for good.
+    std::thread([] {
+      Sleep(2000);
+      _exit(0);
+    }).detach();
+#endif
+  }
   // The title reads and writes its Xbox HDD cache (cache:\EditEx.cac, cache:\CAR.cac: Create mode and arena data).
   void OnPostSetup() override {
     // Scripted controller for automated tests (script_input.h): WWE2K16_TEST_INPUT=1, commands in logs\test_input.txt.
@@ -239,6 +271,59 @@ class Wwe2k16App : public rex::ReXApp {
     REXLOG_INFO("Disc image: {} read from {}", name, root.string());
   }
 
+  wwe2k16::FpsOverlay fps_overlay_;
+  wwe2k16::DisplayRefreshRate display_refresh_rate_;
+
+#if defined(_WIN32)
+  bool is_borderless_ = false;
+  RECT pre_borderless_rect_{};
+  DWORD pre_borderless_style_ = 0;
+
+  // WWE2K16_WINDOW_MODE=windowed|borderless|fullscreen (the launcher sets it); borderless covers the monitor.
+  void SetupWindowMode() {
+    HWND hwnd = window() ? static_cast<HWND>(window()->GetNativeWindowHandle()) : nullptr;
+    if (!hwnd) return;
+    const char* mode_env = std::getenv("WWE2K16_WINDOW_MODE");
+    const std::string mode = mode_env ? mode_env : "";
+    if (mode == "borderless") EnterBorderless(hwnd);
+  }
+
+  void EnterBorderless(HWND hwnd) {
+    HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi{};
+    mi.cbSize = sizeof(mi);
+    if (!GetMonitorInfoW(monitor, &mi)) return;
+    pre_borderless_style_ = GetWindowLongW(hwnd, GWL_STYLE);
+    GetWindowRect(hwnd, &pre_borderless_rect_);
+    DWORD style = pre_borderless_style_;
+    style &= ~WS_OVERLAPPEDWINDOW;
+    style |= WS_POPUP | WS_VISIBLE;
+    SetWindowLongW(hwnd, GWL_STYLE, style);
+    SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left,
+                 mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    is_borderless_ = true;
+    REXLOG_INFO("[wwe2k16] Borderless window mode applied");
+  }
+
+  void ToggleWindowMode() {
+    HWND hwnd = window() ? static_cast<HWND>(window()->GetNativeWindowHandle()) : nullptr;
+    if (!hwnd) return;
+    if (is_borderless_) {
+      SetWindowLongW(hwnd, GWL_STYLE, pre_borderless_style_ ? pre_borderless_style_ : (WS_OVERLAPPEDWINDOW | WS_VISIBLE));
+      int w = pre_borderless_rect_.right - pre_borderless_rect_.left;
+      int h = pre_borderless_rect_.bottom - pre_borderless_rect_.top;
+      if (w <= 0 || h <= 0) { w = 1280; h = 720; }
+      SetWindowPos(hwnd, nullptr, pre_borderless_rect_.left, pre_borderless_rect_.top, w, h,
+                   SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+      is_borderless_ = false;
+      REXLOG_INFO("[wwe2k16] Switched from borderless to windowed");
+    } else if (window()->IsFullscreen()) {
+      window()->SetFullscreen(false);
+    } else {
+      EnterBorderless(hwnd);
+    }
+  }
+#endif
   std::filesystem::path user_data_root_;
   std::filesystem::path game_data_root_;
   std::filesystem::path update_data_root_;

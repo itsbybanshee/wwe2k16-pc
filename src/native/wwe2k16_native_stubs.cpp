@@ -9,6 +9,7 @@
 #include <rex/cvar.h>
 #include <rex/logging.h>
 
+#include "fps_overlay.h"
 #include "wwe12_display.h"
 #include "wwe12_texture_packs.h"
 
@@ -28,7 +29,7 @@ void Wwe12DisplayInit(rex::ui::ImGuiDrawer*) {}
 
 // Pacing log and FPS counter hook of WWE 2K15 (framerate_hook.cpp). Not ported to 2K16 yet: its addresses are 2K15's, the
 // 2K16 ones are in src_v07/frame_rate.cpp. Until then a present does nothing here.
-void Wwe2k16OnGuestPresent(uint8_t*) {}
+void Wwe2k16OnGuestPresent(uint8_t*) { wwe2k16::RecordGameFrame(); }
 
 // Called by the renderer once per presented guest frame (svr_resources.cpp).
 void Wwe12DisplayOnFrame() { Wwe2k16OnGuestPresent(nullptr); }

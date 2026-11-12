@@ -1,0 +1,18 @@
+# ReXGlue v0.10.0 manifest for the native renderer branch (docs/NATIVE_PORT_PLAN.md). The v0.7.3 build keeps using
+# wwe2k16_config.toml; both read the same function lists in config/.
+
+[project]
+name = "wwe2k16"
+sdk_version = "0.10.0"
+game_root = "game"
+
+[entrypoint]
+file_path = "game/default.xex"
+out_directory_path = "generated_v10/default"
+includes = [
+    "wwe2k16_setjmp.toml",
+    "config/functions.toml",
+    "config/functions_fptrs.toml",
+    "config/functions_thunks.toml",
+    "config/hooks.toml",
+]

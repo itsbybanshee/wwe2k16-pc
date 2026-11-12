@@ -38,6 +38,7 @@
 #include "achievements_summary.h"
 #include "display_refresh_rate.h"
 #include "fps_overlay.h"
+#include "screenshot.h"
 #include "script_input.h"
 
 #include <imgui.h>
@@ -217,6 +218,15 @@ class Wwe2k16App : public rex::ReXApp {
     if (window()) display_refresh_rate_.SwitchTo60Hz(window()->GetNativeWindowHandle());
 #endif
     fps_overlay_.Attach(drawer);
+    // Test aid: WWE2K16_TEST_SCREENSHOT=<seconds> takes one screenshot after that delay (for automated runs).
+    if (const char* delay = std::getenv("WWE2K16_TEST_SCREENSHOT"); delay && *delay && window()) {
+      void* handle = window()->GetNativeWindowHandle();
+      std::thread([handle, seconds = std::atoi(delay)] {
+        Sleep(DWORD(seconds) * 1000);
+        wwe2k16::TakeScreenshot(handle);
+      }).detach();
+    }    rex::ui::RegisterBind("bind_screenshot", "F12", "Save a screenshot to Documents\\wwe2k16\\Screenshots",
+                          [this] { if (window()) wwe2k16::TakeScreenshot(window()->GetNativeWindowHandle()); });
     rex::ui::RegisterBind("bind_toggle_fullscreen", "F11", "Toggle fullscreen / windowed", [this] {
 #if defined(_WIN32)
       ToggleWindowMode();
@@ -242,6 +252,7 @@ class Wwe2k16App : public rex::ReXApp {
   }
   void OnShutdown() override {
     rex::ui::UnregisterBind("bind_toggle_fullscreen");
+    rex::ui::UnregisterBind("bind_screenshot");
     fps_overlay_.Detach();
 #if defined(_WIN32)
     display_refresh_rate_.Restore();

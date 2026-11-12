@@ -19,6 +19,7 @@ set(WWE2K16_SOURCES
     src/fps_overlay.cpp
     src/display_refresh_rate.cpp
     src/achievement_sound.cpp
+    src/screenshot.cpp
     src/achievements_summary.cpp
     third_party/stb_vorbis/stb_vorbis.c
 )

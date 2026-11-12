@@ -50,3 +50,31 @@ ported file by file to the new hook API.
 
 WWE '12 PC and WWE 2K15 PC (the source of the renderer) are GPL-3.0. This repository has no licence yet: before
 publishing a native build, settle it with Banshee in writing and state the licence of the combined work.
+
+## Status (2026-11-12)
+
+Branch `native-sdk10` builds two executables from the same title-update code (`tools/build-v10.ps1 -Native`):
+`wwe2k16.exe` (Xenos GPU emulation, the v0.10 stack) and `wwe2k16_native.exe` (native renderer). Both reach the menus; the
+native one draws the 3D scenes (Elimination Chamber entrance, crowd, depth of field) at 60 presents/s.
+
+Measured with the same scripted run (title -> One on One -> entrance, `WWE2K16_TEST_INPUT=1`), 1440p internal resolution,
+RTX 5070 Laptop on mains, `nvidia-smi` once a second:
+
+| | GPU use, ring before the entrance | GPU use, entrance first 25 s | GPU use, entrance 25-60 s | GPU clock / power in the entrance |
+|---|---|---|---|---|
+| Xenos emulation | 17 % avg (max 38) | 37 % avg (max 85) | 66 % avg (max 98) | 1.5-2.1 GHz, 30-46 W |
+| **Native renderer** | 19 % avg (max 26) | **13 %** avg (max 18) | **13 %** avg (max 22) | ~0.74 GHz, 16-17 W |
+
+The native `[perf]` lines of the log report 16.7 ms intervals, 6-12 ms of work per frame, 0 ms of GPU wait and no hitch
+above 25 ms in menus, loading, the ring and the entrance.
+
+Ported from Banshee's v0.7.3 code: EXIT in the Main Menu with a quit prompt, Xbox 360 -> PC strings, the shadows switch,
+60 FPS in entrances (KEEP_60), the scripted test controller, window modes, 60 Hz display switching, FPS overlay, the
+keyboard layout of the launcher (defaults), the controller remap (SDK patch `patches/sdk10/0001-sdl-pad-remap.patch`).
+Still on `src_v07/`: achievements (toasts, launcher summary), screenshots, custom soundtrack (XMP), user language, the
+launcher's saved settings when the game starts without the launcher, FSR / FXAA / anisotropy for the native renderer.
+
+Bring-up notes: the title update must NOT be laid over the disc image (the loader then stalls on the logo); only
+`default.xexp` is. `plume` and `reblue-XenosRecomp` come from the WWE '12 checkout (`native-deps/`), reset to the commits
+WWE 2K15 pins and patched with its patches (plume's header has CRLF line endings: apply `plume-pipeline-cache.patch` with
+`--ignore-whitespace`).

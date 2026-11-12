@@ -57,18 +57,6 @@ REXCVAR_DEFINE_INT32(user_language, 1, "WWE2K16", "Xbox 360 language id");  // n
 REXCVAR_DEFINE_STRING(pad_remap, "", "WWE2K16", "Controller button remap: FROM=TO pairs");  // not yet
 REXCVAR_DEFINE_BOOL(wwe2k16_mods, true, "WWE2K16", "Read replacement files from the mods folder");
 
-#define WWE2K16_KEYBIND(name) \
-  REXCVAR_DEFINE_STRING(keybind_##name, "", "WWE2K16/Keybinds", "Keyboard binding for " #name);  // not yet
-WWE2K16_KEYBIND(a) WWE2K16_KEYBIND(b) WWE2K16_KEYBIND(x) WWE2K16_KEYBIND(y)
-WWE2K16_KEYBIND(left_trigger) WWE2K16_KEYBIND(right_trigger)
-WWE2K16_KEYBIND(left_shoulder) WWE2K16_KEYBIND(right_shoulder)
-WWE2K16_KEYBIND(lstick_up) WWE2K16_KEYBIND(lstick_down) WWE2K16_KEYBIND(lstick_left) WWE2K16_KEYBIND(lstick_right)
-WWE2K16_KEYBIND(lstick_press)
-WWE2K16_KEYBIND(rstick_up) WWE2K16_KEYBIND(rstick_down) WWE2K16_KEYBIND(rstick_left) WWE2K16_KEYBIND(rstick_right)
-WWE2K16_KEYBIND(rstick_press)
-WWE2K16_KEYBIND(dpad_up) WWE2K16_KEYBIND(dpad_down) WWE2K16_KEYBIND(dpad_left) WWE2K16_KEYBIND(dpad_right)
-WWE2K16_KEYBIND(back) WWE2K16_KEYBIND(start) WWE2K16_KEYBIND(guide)
-#undef WWE2K16_KEYBIND
 
 class Wwe2k16App : public rex::ReXApp {
  public:
@@ -87,9 +75,32 @@ class Wwe2k16App : public rex::ReXApp {
     // The GPU command processor waits with Sleep(1 ms); at the default ~15.6 ms timer tick every wait costs a whole tick.
     timeBeginPeriod(1);
 #endif
-    if (config.gpu_plugin.empty()) {
+    // Keyboard and mouse as a controller, with the layout of the launcher's Controls window (Banshee's defaults). The
+    // launcher passes --keybind_<name>=... for the ones the player changed; those win.
+    rex::cvar::SetFlagByName("mnk_mode", "true");
+    struct KeyBind { const char* name; const char* keys; };
+    static constexpr KeyBind kBinds[] = {
+        {"keybind_a", "L,Return"},        {"keybind_b", "K,Escape"},
+        {"keybind_x", "J"},               {"keybind_y", "Space"},
+        {"keybind_left_trigger", "Shift"}, {"keybind_right_trigger", "I"},
+        {"keybind_left_shoulder", "O"},   {"keybind_right_shoulder", "U"},
+        {"keybind_lstick_up", "W"},       {"keybind_lstick_down", "S"},
+        {"keybind_lstick_left", "A"},     {"keybind_lstick_right", "D"},
+        {"keybind_lstick_press", "C"},    {"keybind_rstick_up", "Numpad8,T"},
+        {"keybind_rstick_down", "Numpad2,G"}, {"keybind_rstick_left", "Numpad4,F"},
+        {"keybind_rstick_right", "Numpad6,H"}, {"keybind_rstick_press", "V"},
+        {"keybind_dpad_up", "Up,1"},      {"keybind_dpad_down", "Down,2"},
+        {"keybind_dpad_left", "Left,3"},  {"keybind_dpad_right", "Right,4"},
+        {"keybind_back", "Tab"},          {"keybind_start", "Return"},
+    };
+    for (const auto& bind : kBinds) {
+      if (!rex::cvar::HasNonDefaultValue(bind.name)) rex::cvar::SetFlagByName(bind.name, bind.keys);
+    }    if (config.gpu_plugin.empty()) {
       config.gpu_plugin = "xenos";
     }
+#if defined(SVR_NATIVE_RENDERER)
+    ApplyLauncherGraphicsOptions();
+#endif
 #if defined(SVR_NATIVE_RENDERER)
     // The Xenos plugin's "null" backend keeps the game's D3D command stream moving (fences, interrupts, vblank) without
     // drawing; the re:Blue hooks draw instead.
@@ -254,6 +265,40 @@ class Wwe2k16App : public rex::ReXApp {
   }
 
  private:
+#if defined(SVR_NATIVE_RENDERER)
+  // The launcher's graphics options (command line and WWE2K16_* variables, written for the Xenos path) mapped onto the
+  // native renderer's own settings. A value the player set in wwe2k16.toml or with --bd_* / --svr_* is left alone.
+  static void ApplyLauncherGraphicsOptions() {
+    auto set = [](const char* name, const std::string& value) {
+      if (!rex::cvar::HasNonDefaultValue(name)) rex::cvar::SetFlagByName(name, value);
+    };
+    auto env = [](const char* name) -> std::string {
+      const char* v = std::getenv(name);
+      return v ? v : "";
+    };
+    // Internal resolution: the launcher's 720 / 1080 / 1440 / 2160 are 1x / 2x / 2x / 3x of 720p (FSR is not used here:
+    // the renderer is cheap enough to draw at the output resolution).
+    const std::string res = env("WWE2K16_RESOLUTION");
+    if (res == "720") set("svr_render_scale", "1");
+    else if (res == "1080" || res == "1440") set("svr_render_scale", "2");
+    else if (res == "2160") set("svr_render_scale", "3");
+    // Anisotropic filtering: 0 off, 3 = 4x, 5 = 16x.
+    const std::string aniso = env("WWE2K16_ANISO");
+    if (aniso == "0") set("bd_anisotropy", "0");
+    else if (aniso == "3") set("bd_anisotropy", "4");
+    else if (aniso == "5") set("bd_anisotropy", "16");
+    // Anti-aliasing: none / fxaa / fxaa_extreme.
+    const std::string aa = env("WWE2K16_AA");
+    if (aa == "none") set("svr_fxaa", "0");
+    else if (aa == "fxaa") set("svr_fxaa", "1");
+    else if (aa == "fxaa_extreme") set("svr_fxaa", "2");
+    if (env("WWE2K16_VSYNC") == "0") set("bd_vsync", "false");
+    REXLOG_INFO("[wwe2k16] graphics: render scale {}, aniso {}, fxaa {}, vsync {}",
+                rex::cvar::GetFlagByName("svr_render_scale"), rex::cvar::GetFlagByName("bd_anisotropy"),
+                rex::cvar::GetFlagByName("svr_fxaa"), rex::cvar::GetFlagByName("bd_vsync"));
+  }
+#endif
+
   static bool IsDiscImage(const std::filesystem::path& p) {
     std::error_code ec;
     std::string ext = p.extension().string();

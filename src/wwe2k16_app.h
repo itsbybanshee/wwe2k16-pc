@@ -26,8 +26,12 @@
 #include <rex/filesystem/devices/host_path_device.h>
 #include <rex/filesystem/vfs.h>
 #include <rex/logging/macros.h>
+#include <rex/input/input_system.h>
 #include <rex/rex_app.h>
+#include <rex/runtime.h>
 #include <rex/system/kernel_state.h>
+
+#include "script_input.h"
 
 #include <imgui.h>
 
@@ -191,6 +195,12 @@ class Wwe2k16App : public rex::ReXApp {
 
   // The title reads and writes its Xbox HDD cache (cache:\EditEx.cac, cache:\CAR.cac: Create mode and arena data).
   void OnPostSetup() override {
+    // Scripted controller for automated tests (script_input.h): WWE2K16_TEST_INPUT=1, commands in logs\test_input.txt.
+    if (wwe2k16::ScriptInputDriver::Enabled() && runtime() && runtime()->input_system()) {
+      static_cast<rex::input::InputSystem*>(runtime()->input_system())
+          ->AddDriver(std::make_unique<wwe2k16::ScriptInputDriver>(nullptr));
+      REXLOG_INFO("[wwe2k16] scripted input on (logs/test_input.txt)");
+    }
     if (user_data_root_.empty()) return;
     const auto cache_root = user_data_root_ / "xbox_cache";
     std::error_code ec;

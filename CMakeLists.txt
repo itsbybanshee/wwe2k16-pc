@@ -14,6 +14,8 @@ set(WWE2K16_SOURCES
     src/main.cpp
     src/exit_menu.cpp
     src/shadows.cpp
+    src/framerate_hook.cpp
+    src/test_input.cpp
 )
 
 if(WIN32)

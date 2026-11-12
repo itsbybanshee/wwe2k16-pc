@@ -128,13 +128,45 @@ class Wwe2k16App : public rex::ReXApp {
   }
 
   void OnPreLaunchModule() override {
-    if (!bd::gpu::Video::CreateHostDevice(window())) {
+    // WWE2K16_TEST_NO_VULKAN=1 pretends the device could not be created (tests the DirectX 12 fallback below).
+    if (std::getenv("WWE2K16_TEST_NO_VULKAN") || !bd::gpu::Video::CreateHostDevice(window())) {
       // GPU or driver without the Vulkan 1.2 features re:Blue needs (bufferDeviceAddress, descriptor indexing...):
       // device.cpp has logged which. Say so and quit instead of running behind a black window. The launcher looks for
       // "could not create the host device" in the log: keep it.
       REXLOG_ERROR("Native renderer: could not create the host device (Vulkan unavailable or too old)");
       rex::FlushLogging();
 #if defined(_WIN32)
+      // No Vulkan 1.2: start the GPU-emulation build beside this exe instead. It draws with DirectX 12 first (and Vulkan
+      // if that fails), so cards without Vulkan still play. Same command line; this process ends.
+      {
+        const std::filesystem::path fallback = rex::filesystem::GetExecutableFolder() / "wwe2k16.exe";
+        std::error_code ec;
+        wchar_t self[MAX_PATH] = {};
+        GetModuleFileNameW(nullptr, self, MAX_PATH);
+        if (std::filesystem::exists(fallback, ec) && !std::filesystem::equivalent(fallback, self, ec)) {
+          // The command line minus the program name.
+          std::wstring args = GetCommandLineW();
+          size_t cut = 0;
+          if (!args.empty() && args[0] == L'"') {
+            cut = args.find(L'"', 1);
+            cut = cut == std::wstring::npos ? args.size() : cut + 1;
+          } else {
+            cut = args.find(L' ');
+            if (cut == std::wstring::npos) cut = args.size();
+          }
+          std::wstring command = L"\"" + fallback.wstring() + L"\"" + args.substr(cut);
+          STARTUPINFOW si{sizeof(si)};
+          PROCESS_INFORMATION pi{};
+          if (CreateProcessW(fallback.c_str(), command.data(), nullptr, nullptr, FALSE, 0, nullptr,
+                             rex::filesystem::GetExecutableFolder().c_str(), &si, &pi)) {
+            REXLOG_WARN("Native renderer unavailable: started wwe2k16.exe (DirectX 12 / Vulkan emulation) instead");
+            rex::FlushLogging();
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+            std::_Exit(0);
+          }
+        }
+      }
       MessageBoxW(nullptr,
                   L"The native renderer could not start: this graphics card or its driver lacks the Vulkan 1.2 "
                   L"features it needs.\n\nUpdate the graphics driver.\n\nLe rendu natif n’a pas pu démarrer : "

@@ -37,6 +37,7 @@
 #include "achievement_sound.h"
 #include "achievements_summary.h"
 #include "display_refresh_rate.h"
+#include "launcher_settings.h"
 #include "fps_overlay.h"
 #include "screenshot.h"
 #include "script_input.h"
@@ -173,6 +174,8 @@ class Wwe2k16App : public rex::ReXApp {
 
   void OnConfigurePaths(rex::PathConfig& paths) override {
     const auto exe_dir = rex::filesystem::GetExecutableFolder();
+    // Started without the launcher (no game argument, e.g. double-clicking the exe): use the settings last saved in it.
+    wwe2k16::ApplyLauncherSettings(paths, GetArgument("game_directory").has_value());
     // Keep the graphics and pipeline caches beside the user data when the launcher gave one, else beside the exe.
     if (paths.cache_root.empty()) paths.cache_root = exe_dir / "cache";
     if (paths.user_data_root.empty()) paths.user_data_root = exe_dir / "userdata";

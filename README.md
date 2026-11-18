@@ -11,6 +11,10 @@ If you want to support me, here's my [Patreon](https://www.patreon.com/c/Banshee
 
 To keep up with updates, follow me on [Twitter](https://x.com/itsbybanshee).
 
+## PSA
+
+Project discontinued. I will not be providing further updates. If you want to fork it, I allow you.
+
 ## Features
 
 - **Resolution**: 720p, 1080p, 1440p or 4K

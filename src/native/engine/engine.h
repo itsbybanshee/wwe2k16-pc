@@ -6,8 +6,6 @@
 
 #pragma once
 
-int Wwe2k16FrameRateCap();  // src/framerate_hook.cpp: the engine's current frame rate
-
 namespace bd::engine {
 
 // Blue Dragon skips presenting some frames while its frame interpolation runs; SvR presents every
@@ -25,10 +23,9 @@ struct Settings {
     static Settings settings;
     return settings;
   }
-  // The game advances one engine step per frame and its own vblank pacing no longer gates presents
-  // (the null GPU skips swaps), so presents are capped at the engine's frame rate: 60, or 30 in
-  // entrances when the launcher's "60 FPS Cinematics" is off (src/framerate_hook.cpp).
-  int FPSLimit() const { return ::Wwe2k16FrameRateCap(); }
+  // SvR's game logic runs at the 60 fps mode src/fps_hooks.cpp keeps it in, and its own vblank
+  // pacing no longer gates presents (the null GPU skips swaps), so presents are capped at 60.
+  int FPSLimit() const { return 60; }
 };
 
 }  // namespace bd::engine

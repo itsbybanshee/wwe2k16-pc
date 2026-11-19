@@ -11,6 +11,11 @@
 //   sub_82C29578    D3D present interval setter, `stw r4,14000(r3)`
 //
 // Environment switch: WWE2K16_KEEP_60=0|1   console 30 FPS in entrances etc. | keep 60 FPS (default)
+//
+// The renderer caps its presents at the engine's current frame rate (Wwe2k16FrameRateCap, engine.h FPSLimit): the game
+// advances one engine step per present, so with WWE2K16_KEEP_60=0 entrances present at 30 FPS at their normal speed
+// (measured: the same entrance lasts 56.0 s at 30 FPS and 55.7 s at 60 FPS). Forcing the engine to 30 FPS everywhere was
+// tried for slow CPUs and dropped: the menus then advance far slower than real time.
 
 #include "generated_v10/default/wwe2k16_init.h"
 
@@ -19,6 +24,7 @@
 #include <cstring>
 
 #include <rex/logging.h>
+#include <rex/runtime.h>
 
 namespace {
 
@@ -34,6 +40,17 @@ bool Keep60() {
 }
 
 }  // namespace
+
+// The present cap (engine.h FPSLimit): the engine's frame rate (60, 30 in entrances with WWE2K16_KEEP_60=0, PAL 50/25).
+int Wwe2k16FrameRateCap() {
+  auto* rt = rex::Runtime::instance();
+  const uint8_t* m = rt ? rt->virtual_membase() : nullptr;
+  if (!m) return 60;
+  uint32_t rate;
+  std::memcpy(&rate, m + kFrameRate, 4);
+  rate = _byteswap_ulong(rate);
+  return (rate == 25 || rate == 30 || rate == 50 || rate == 60) ? int(rate) : 60;
+}
 
 REX_EXTERN(__imp__sub_82B23E80);
 REX_EXTERN(__imp__sub_82B23F20);

@@ -347,121 +347,6 @@ struct AchievementToasts::NativeState {};
 
 AchievementToasts::~AchievementToasts() = default;
 
-class AchievementToastDialog final : public rex::ui::ImGuiDialog {
- public:
-  AchievementToastDialog(rex::ui::ImGuiDrawer* drawer, AchievementToasts* owner)
-      : ImGuiDialog(drawer), drawer_(drawer), owner_(owner) {}
-
- protected:
-  void OnDraw(ImGuiIO& io) override {
-    using clock = std::chrono::steady_clock;
-    constexpr float kShowSeconds = 5.0f;
-    constexpr float kFadeSeconds = 0.3f;
-
-    if (!current_) {
-      {
-        std::lock_guard lock(owner_->mutex_);
-        if (owner_->queue_.empty()) {
-          owner_->dialog_active_ = false;
-          Close();
-          return;
-        }
-        current_ = std::move(owner_->queue_.front());
-        owner_->queue_.pop_front();
-      }
-      icon_.reset();
-      uint32_t w = 0, h = 0;
-      std::vector<uint8_t> rgba;
-      if (drawer_->immediate_drawer() && DecodePng(current_->icon_path, w, h, rgba)) {
-        icon_ = drawer_->immediate_drawer()->CreateTexture(w, h, rex::ui::ImmediateTextureFilter::kLinear, false,
-                                                           rgba.data());
-      }
-      shown_at_ = clock::now();
-      PlayWavAsync(owner_->sound_);  // one chime per pop-up, as it appears
-    }
-    const float t = std::chrono::duration<float>(clock::now() - shown_at_).count();
-    if (t >= kShowSeconds) {
-      current_.reset();  // next one (or close) on the following frame
-      icon_.reset();
-      return;
-    }
-    const float alpha = std::clamp(std::min(t, kShowSeconds - t) / kFadeSeconds, 0.0f, 1.0f);
-    ImFont* regular = owner_->font_regular_ ? owner_->font_regular_ : ImGui::GetFont();
-    ImFont* bold = owner_->font_bold_ ? owner_->font_bold_ : regular;
-
-    // Proportions of the design at 1080p (about 470 x 76 px); everything scales with the window height.
-    const float s = std::max(0.5f, io.DisplaySize.y / 1080.0f);
-    const float pad = 7.0f * s, icon = 62.0f * s, gap = 12.0f * s, rounding = 10.0f * s;
-    const float title_size = 19.0f * s, desc_size = 17.0f * s, desc_line = 19.0f * s, min_gap = 6.0f * s;
-    const char* kPrefix = "Achievement unlocked: ";
-    const std::string lang_str = rex::cvar::GetFlagByName("user_language");
-    if (lang_str == "3") {
-      kPrefix = "Erfolg freigeschaltet: ";
-    } else if (lang_str == "4") {
-      kPrefix = "Succ\xc3\xa8s d\xc3\xa9verrouill\xc3\xa9 : ";
-    } else if (lang_str == "5") {
-      kPrefix = "Logro desbloqueado: ";
-    } else if (lang_str == "6") {
-      kPrefix = "Obiettivo sbloccato: ";
-    }
-
-    const float prefix_w = regular->CalcTextSizeA(title_size, FLT_MAX, 0.0f, kPrefix).x;
-    const float name_w = bold->CalcTextSizeA(title_size, FLT_MAX, 0.0f, current_->name.c_str()).x;
-    const float text_w = std::clamp(prefix_w + name_w + 16.0f * s, 370.0f * s, 640.0f * s);
-    const auto lines = WrapLines(regular, desc_size, current_->description, text_w - 8.0f * s);
-
-    // The title starts at the icon's top edge and the description ends at its bottom edge; the space
-    // between them is the separation. A description too long for that grows the panel instead.
-    const float desc_h = lines.size() * desc_line;
-    const float content_h = std::max(icon, title_size + (lines.empty() ? 0.0f : min_gap + desc_h));
-    const float box_w = pad + icon + gap + text_w + gap;
-    const float box_h = content_h + 2.0f * pad;
-    const ImVec2 p0(std::floor((io.DisplaySize.x - box_w) * 0.5f), std::floor(io.DisplaySize.y - box_h - 56.0f * s));
-    const ImVec2 p1(p0.x + box_w, p0.y + box_h);
-
-    ImDrawList* dl = ImGui::GetForegroundDrawList();
-    // Panel: flat dark, with a thin light border.
-    dl->AddRectFilled(p0, p1, Color(0.075f, 0.08f, 0.09f, 0.96f * alpha), rounding);
-    dl->AddRect(p0, p1, Color(0.82f, 0.84f, 0.88f, 0.55f * alpha), rounding, 0, std::max(1.0f, 1.2f * s));
-
-    // Icon, vertically centred on the left.
-    const float content_top = p0.y + pad;
-    const ImVec2 i0(p0.x + pad, content_top + (content_h - icon) * 0.5f);
-    const ImVec2 i1(i0.x + icon, i0.y + icon);
-    if (icon_) {
-      dl->AddImageRounded(reinterpret_cast<ImTextureID>(icon_.get()), i0, i1, ImVec2(0, 0), ImVec2(1, 1),
-                          Color(1, 1, 1, alpha), 6.0f * s);
-    } else {
-      dl->AddRectFilled(i0, i1, Color(0.2f, 0.21f, 0.24f, alpha), 6.0f * s);
-    }
-    dl->AddRect(i0, i1, Color(1, 1, 1, 0.18f * alpha), 6.0f * s);
-
-    // Text, centred horizontally in the area right of the icon: title at the top, description at the bottom.
-    const float area_x = i1.x + gap;
-    const float centre_x = area_x + text_w * 0.5f;
-    float y = content_top;
-    const float title_x = std::floor(centre_x - (prefix_w + name_w) * 0.5f);
-    dl->AddText(regular, title_size, ImVec2(title_x, y), Color(1, 1, 1, alpha), kPrefix);
-    dl->AddText(bold, title_size, ImVec2(title_x + prefix_w, y), Color(1.0f, 0.85f, 0.1f, alpha),
-                current_->name.c_str());
-    y = content_top + content_h - desc_h;
-    for (const auto& line : lines) {
-      const float w = regular->CalcTextSizeA(desc_size, FLT_MAX, 0.0f, line.data(), line.data() + line.size()).x;
-      dl->AddText(regular, desc_size, ImVec2(std::floor(centre_x - w * 0.5f), y), Color(1, 1, 1, 0.92f * alpha),
-                  line.data(), line.data() + line.size());
-      y += desc_line;
-    }
-  }
-
-  void OnClose() override { icon_.reset(); }
-
- private:
-  rex::ui::ImGuiDrawer* drawer_;
-  AchievementToasts* owner_;
-  std::optional<AchievementToasts::Toast> current_;
-  std::unique_ptr<rex::ui::ImmediateTexture> icon_;
-  std::chrono::steady_clock::time_point shown_at_;
-};
 
 void AchievementToasts::Attach(rex::ui::WindowedAppContext* app_context, rex::ui::ImGuiDrawer* drawer,
                                void* native_window_handle) {
@@ -471,26 +356,12 @@ void AchievementToasts::Attach(rex::ui::WindowedAppContext* app_context, rex::ui
   if (native_window_handle) {
     native_state_ = std::make_shared<NativeState>(this, static_cast<HWND>(native_window_handle));
     if (!native_state_->Initialize()) {
-      REXLOG_WARN("[wwe2k16] Native achievement notification overlay unavailable; using the game UI overlay");
+      REXLOG_WARN("[wwe2k16] Native achievement notification overlay unavailable; no pop-up");
       native_state_.reset();
     }
   }
   if (native_state_) return;
 #endif
-  if (!drawer_)
-    return;
-  // Segoe UI, baked large so it stays smooth when drawn smaller; the default ImGui font stays first.
-  ImFontAtlas* fonts = drawer_->GetIO().Fonts;
-  if (fonts->Fonts.empty())
-    fonts->AddFontDefault();
-  const std::string windows_fonts = "C:\\Windows\\Fonts\\";
-  if (std::filesystem::exists(windows_fonts + "segoeui.ttf") && std::filesystem::exists(windows_fonts + "segoeuib.ttf")) {
-    font_regular_ = fonts->AddFontFromFileTTF((windows_fonts + "segoeui.ttf").c_str(), 40.0f);
-    font_bold_ = fonts->AddFontFromFileTTF((windows_fonts + "segoeuib.ttf").c_str(), 40.0f);
-    drawer_->RebuildFontTexture();
-  } else {
-    REXLOG_WARN("[wwe2k16] Segoe UI not found; achievement pop-ups use the default font");
-  }
 }
 
 void AchievementToasts::Detach() {
@@ -525,9 +396,6 @@ void AchievementToasts::ShowFromUIThread() {
     return;
   }
 #endif
-  if (!drawer_) return;
-  dialog_active_ = true;
-  new AchievementToastDialog(drawer_, this);  // registers itself; deletes itself when closed
 }
 
 }  // namespace wwe2k16

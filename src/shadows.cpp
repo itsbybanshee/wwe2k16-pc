@@ -7,13 +7,13 @@
 //   - The character depth shadow map passes are kept intact so that the shadow map buffer remains cleanly
 //     initialized, preventing uninitialized tiled memory patterns (striped/hatched shadow acne) on wrestler models.
 
+#include "generated_v10/default/wwe2k16_init.h"
+
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
 
 #include <rex/logging.h>
-#include <rex/ppc/context.h>
-#include <rex/ppc/memory.h>
 
 #ifdef WWE2K16_TU
 #define WWE2K16_FN_PlaneShadowPass sub_82B5F7F0
@@ -42,8 +42,8 @@ void LogShadowsDisabledOnce() {
 
 }  // namespace
 
-extern "C" PPC_FUNC(WWE2K16_IMP_PlaneShadowPass);
-extern "C" PPC_FUNC(WWE2K16_FN_PlaneShadowPass) {
+REX_EXTERN(WWE2K16_IMP_PlaneShadowPass);
+extern "C" REX_FUNC(WWE2K16_FN_PlaneShadowPass) {
   if (!ShadowsEnabled()) {
     LogShadowsDisabledOnce();
     ctx.r3.s64 = 0;

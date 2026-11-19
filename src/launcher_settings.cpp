@@ -1,3 +1,4 @@
+// The version switch of Banshee's original (vanilla / title update exe) is gone: this branch builds the title update only.
 #include "launcher_settings.h"
 
 #include <cctype>
@@ -100,30 +101,6 @@ void SetEnvStrIfUnset(const char* name, const std::string& value) {
   }
 }
 
-#if defined(_WIN32)
-// Starts the other version with this process's arguments. True when it started.
-bool StartOtherVersion(const fs::path& exe) {
-  std::wstring args = GetCommandLineW();
-  // Skip argv[0] (quoted or not).
-  size_t pos = 0;
-  if (!args.empty() && args[0] == L'"') {
-    pos = args.find(L'"', 1);
-    pos = pos == std::wstring::npos ? args.size() : pos + 1;
-  } else {
-    pos = args.find(L' ');
-    pos = pos == std::wstring::npos ? args.size() : pos;
-  }
-  std::wstring command = L"\"" + exe.wstring() + L"\"" + args.substr(pos);
-  STARTUPINFOW si{sizeof(si)};
-  PROCESS_INFORMATION pi{};
-  if (!CreateProcessW(exe.c_str(), command.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
-    return false;
-  }
-  CloseHandle(pi.hThread);
-  CloseHandle(pi.hProcess);
-  return true;
-}
-#endif
 
 }  // namespace
 
@@ -139,29 +116,17 @@ void ApplyLauncherSettings(rex::PathConfig& paths, bool started_by_launcher) {
     paths.user_data_root = user_data;
   }
   const auto s = ReadSettings(user_data / "launcher.json");
+  if (const char* dbg = std::getenv("WWE2K16_DEBUG_SETTINGS")) {
+    std::ofstream log(dbg, std::ios::app);
+    log << "root=" << root.string() << " user_data=" << user_data.string() << " entries=" << s.size() << " GameFolder=" << (s.count("GameFolder") ? s.at("GameFolder") : "<none>") << "\n";
+  }
   auto flag = [&](const char* name, bool fallback) {
     auto it = s.find(name);
     return it == s.end() ? fallback : it->second == "true";
   };
 
-  // Version: the launcher's Vanilla / Title update choice, when that version is built and the update installed.
   const fs::path update_folder = user_data / "title_update";
-  const bool want_tu = flag("UseTitleUpdate", false) && fs::exists(update_folder / "default.xexp", ec);
-#ifdef WWE2K16_TU
-  constexpr bool is_tu = true;
-#else
-  constexpr bool is_tu = false;
-#endif
-#if defined(_WIN32)
-  if (want_tu != is_tu) {
-    const fs::path other =
-        rex::filesystem::GetExecutableFolder() / (want_tu ? "wwe2k16_tu.exe" : "wwe2k16.exe");
-    if (fs::exists(other, ec) && StartOtherVersion(other)) {
-      TerminateProcess(GetCurrentProcess(), 0);
-    }
-  }
-#endif
-  if (is_tu && !rex::cvar::HasNonDefaultValue("update_data_root") && fs::is_directory(update_folder, ec)) {
+  if (!rex::cvar::HasNonDefaultValue("update_data_root") && fs::is_directory(update_folder, ec)) {
     paths.update_data_root = update_folder;
   }
 
@@ -237,7 +202,8 @@ void ApplyLauncherSettings(rex::PathConfig& paths, bool started_by_launcher) {
   SetIfDefault("fullscreen", is_fullscreen ? "true" : "false");
   SetIfDefault("present_effect", presentEffect);
   SetEnvStrIfUnset("WWE2K16_WINDOW_MODE", window_mode);
-  SetEnvStrIfUnset("WWE2K16_RESOLUTION", resolution);
+  // No saved resolution (or "auto"): the game picks one from the graphics card (device_profile.cpp).
+  SetEnvStrIfUnset("WWE2K16_RESOLUTION", (s.count("Resolution") && s.at("Resolution") != "auto") ? resolution : "auto");
   SetEnvStrIfUnset("WWE2K16_UPSCALE", upscaler);
 
   // Frame pacing switches (read from the environment by wwe2k16_app.h / frame_rate.cpp).

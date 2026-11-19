@@ -1,30 +1,36 @@
-# wwe2k16 - WWE 2K16 (Xbox 360) static recompilation with the ReXGlue SDK.
-# SDK boilerplate lives in generated/rexglue.cmake (rendered by tools/codegen.ps1 via `rexglue init`).
+# wwe2k16 - WWE 2K16 (Xbox 360) static recompilation with the ReXGlue SDK v0.10 (branch native-sdk10).
+# SDK boilerplate lives in generated_v10/rexglue.cmake (rendered by `rexglue init`, see docs/NATIVE_PORT_PLAN.md).
+# The v0.7.3 build of Banshee's version is on the main branch.
 
 cmake_minimum_required(VERSION 3.25)
-project(wwe2k16 LANGUAGES CXX)
+project(wwe2k16 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(generated/rexglue.cmake)
+include(generated_v10/rexglue.cmake)
 
 set(WWE2K16_SOURCES
     src/main.cpp
-    src/disc_image.cpp
-    src/test_input.cpp
-    src/resolve_coherency.cpp
-    src/frame_rate.cpp
-    src/launcher_settings.cpp
-    src/screenshot.cpp
-    src/achievement_toast.cpp
-    src/achievement_sound.cpp
-    src/fps_overlay.cpp
-    src/shadows.cpp
-    src/cp_profiler.cpp
     src/exit_menu.cpp
+    src/shadows.cpp
+    src/crash_guards.cpp
+    src/framerate_hook.cpp
+    src/test_input.cpp
+    src/fps_overlay.cpp
     src/display_refresh_rate.cpp
+    src/achievement_sound.cpp
+    src/screenshot.cpp
+    src/launcher_settings.cpp
+    src/device_profile.cpp
+    src/achievement_toast.cpp
+    src/achievements_summary.cpp
+    third_party/stb_vorbis/stb_vorbis.c
 )
+
+if(WIN32)
+    enable_language(RC)
+endif()
 
 if(WIN32)
     add_executable(wwe2k16 WIN32 ${WWE2K16_SOURCES})
@@ -32,37 +38,53 @@ else()
     add_executable(wwe2k16 ${WWE2K16_SOURCES})
 endif()
 
-rexglue_setup_target(wwe2k16)
 
-# Title update 3 build: wwe2k16_tu.exe from generated_tu\ (tools/build-tu.ps1). Same app code; WWE2K16_TU selects the
-# title update's function addresses where the app hooks the game.
-set(WWE2K16_TARGETS wwe2k16)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated_tu/sources.cmake")
-    set(WWE2K16_RETAIL_SOURCES ${GENERATED_SOURCES})
-    include(generated_tu/sources.cmake)
-    set(WWE2K16_TU_SOURCES ${GENERATED_SOURCES})
-    set(GENERATED_SOURCES ${WWE2K16_RETAIL_SOURCES})
-    if(WIN32)
-        add_executable(wwe2k16_tu WIN32 ${WWE2K16_SOURCES} ${WWE2K16_TU_SOURCES})
-    else()
-        add_executable(wwe2k16_tu ${WWE2K16_SOURCES} ${WWE2K16_TU_SOURCES})
+# Native renderer (docs/NATIVE_PORT_PLAN.md): a second executable, wwe2k16_native.exe, that draws the game's D3D calls
+# through re:Blue + plume (Vulkan), taken from WWE 2K15 PC / WWE '12 PC. It links the same recompiled objects; wwe2k16.exe
+# (Xenos GPU emulation) is unchanged. Needs plume and reblue-XenosRecomp in native-deps/ (WWE2K16_NATIVE_DEPS).
+# Added before the SDK libraries so plume's VMA wins over rexruntime's (see WWE '12 PC).
+option(WWE2K16_NATIVE_RENDERER "Also build wwe2k16_native.exe (native Vulkan renderer)" OFF)
+if(WWE2K16_NATIVE_RENDERER)
+    include(cmake/native_renderer.cmake)
+    add_executable(wwe2k16_native WIN32 ${WWE2K16_SOURCES} res/wwe2k16.rc)
+    target_compile_definitions(wwe2k16_native PRIVATE WWE2K16_TU=1)
+    wwe2k16_add_native_renderer(wwe2k16_native)
+endif()
+target_compile_definitions(wwe2k16 PRIVATE WWE2K16_TU=1)
+rexglue_setup_target(wwe2k16 GPU_PLUGINS xenos)
+
+if(WWE2K16_NATIVE_RENDERER)
+    # wwe2k16_recomp only exists once codegen has written generated_v10/ (a fresh checkout's first configure doesn't).
+    if(TARGET wwe2k16_recomp)
+        target_sources(wwe2k16_native PRIVATE $<TARGET_OBJECTS:wwe2k16_recomp>)
     endif()
-    target_include_directories(wwe2k16_tu PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/generated_tu)
-    target_link_libraries(wwe2k16_tu PRIVATE rex::core rex::system rex::kernel rex::graphics rex::ui)
-    rexglue_configure_target(wwe2k16_tu)
-    target_compile_definitions(wwe2k16_tu PRIVATE WWE2K16_TU=1)
-    list(APPEND WWE2K16_TARGETS wwe2k16_tu)
+    target_include_directories(wwe2k16_native PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${REXGLUE_ENTRYPOINT_INCLUDE_DIR})
+    target_link_libraries(wwe2k16_native PRIVATE rex::runtime)
+    add_dependencies(wwe2k16_native wwe2k16_codegen)
+    rexglue_apply_target_settings(wwe2k16_native)
+    rexglue_configure_target(wwe2k16_native GPU_PLUGINS xenos)
+    if(MSVC)
+        target_link_options(wwe2k16_native PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+    endif()
 endif()
 
-foreach(target IN LISTS WWE2K16_TARGETS)
 if(WIN32)
     enable_language(RC)
-    target_sources(${target} PRIVATE res/wwe2k16.rc)
-    target_link_libraries(${target} PRIVATE windowscodecs ole32 shell32 winmm gdiplus)
-    add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/res/achievement.ogg"
-                "$<TARGET_FILE_DIR:${target}>/achievement.ogg")
-    target_link_options(${target} PRIVATE "LINKER:/map:$<TARGET_FILE_DIR:${target}>/${target}.map")
+    target_sources(wwe2k16 PRIVATE res/wwe2k16.rc)
+    set_source_files_properties(res/wwe2k16.rc PROPERTIES
+        OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/res/wwe2k16.ico)
+    if(MSVC)
+        target_link_options(wwe2k16 PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+    endif()
 endif()
-endforeach()
+
+if(WIN32)
+    # Achievement pop-up (GDI+), screenshots (WIC), device profile (loads dxgi.dll at run time).
+    target_link_libraries(wwe2k16 PRIVATE gdiplus windowscodecs ole32)
+    if(TARGET wwe2k16_native)
+        target_link_libraries(wwe2k16_native PRIVATE gdiplus windowscodecs ole32)
+    endif()
+endif()

@@ -1001,6 +1001,7 @@ function renderMusic(songs) {
         list.appendChild(row);
     });
 }
+document.getElementById('copy-diagnostic')?.addEventListener('click', () => send('copyDiagnostic'));
 document.getElementById('open-dlc-folder').addEventListener('click', () => send('openFolder', { which: 'dlc' }));
 document.getElementById('add-mod-files').addEventListener('click', () => send('addModFiles'));
 document.getElementById('add-mod-folder').addEventListener('click', () => send('addModFolder'));

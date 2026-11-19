@@ -24,6 +24,7 @@ public sealed class MainForm : Form
     bool _tuBusy;
     LauncherSettings _settings;
     Process? _game;
+    DateTime _gameStarted;
     readonly System.Windows.Forms.Timer _gamePollTimer = new() { Interval = 1000 };
     bool _dlcBusy;
     ReleaseInfo? _latestRelease;
@@ -303,6 +304,9 @@ public sealed class MainForm : Form
             case "openUrl":
                 OpenUrl((string?)msg!["url"]);
                 break;
+            case "copyDiagnostic":
+                CopyDiagnostic();
+                break;
         }
     }
 
@@ -498,6 +502,8 @@ public sealed class MainForm : Form
         }
 
         bool mountUpdateRoot = useTu && !gameIsAlreadyTu && _tu.Ready;
+        if (mountUpdateRoot && Diagnostics.TitleUpdateIsExpected(_tu, out _, out _) == false)
+            Toast("Your title update is not the revision this version was tested with. If the game closes right away, install the correct Title Update 3.", true);
 
         var (scale, width, height) = _settings.Display();
         bool isFullscreen = false;
@@ -614,6 +620,7 @@ public sealed class MainForm : Form
             _mods.CleanupStaged();
             return;
         }
+        _gameStarted = DateTime.UtcNow;
         _game.EnableRaisingEvents = true;
         _game.Exited += (_, _) => OnGameExited();
         _gamePollTimer.Start();
@@ -664,7 +671,34 @@ public sealed class MainForm : Form
         Activate();
         Post(new { type = "gameRunning", running = false });
         SendState();   // achievements unlocked during the session
-        if (code != 0) Toast($"The game closed unexpectedly (code {code:X}). The log is in the logs folder.", true);
+        bool quick = DateTime.UtcNow - _gameStarted < TimeSpan.FromSeconds(45);
+        if (code != 0 || quick)
+        {
+            // The game stopped at once or crashed: say why when the log shows it, and where to get help.
+            string? why = Diagnostics.ExplainLog(Diagnostics.NewestLog(_paths));
+            Toast((why is not null ? why + " " : $"The game closed unexpectedly (code {code:X}). ")
+                  + "Click \"Copy diagnostic\" and send it when you ask for help.", true);
+        }
+    }
+
+    // --- Diagnostic: one report to paste into a GitHub issue or Discord when the game does not start -----------------------
+
+    void CopyDiagnostic()
+    {
+        try
+        {
+            string kind = string.IsNullOrEmpty(_settings.GameFolder) ? "none chosen"
+                : IsDiscImage(_settings.GameFolder) ? "disc image (.iso)" : "folder";
+            string report = Diagnostics.Build(_paths, _settings, _tu, kind);
+            Directory.CreateDirectory(_paths.Logs);
+            File.WriteAllText(Path.Combine(_paths.Logs, "diagnostic.txt"), report);
+            Clipboard.SetText(report);
+            Toast("Diagnostic copied. Paste it in your message (it is also saved in the logs folder as diagnostic.txt).");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.ExternalException)
+        {
+            Toast("Could not copy the diagnostic: " + ex.Message, true);
+        }
     }
 
     // --- DLC ----------------------------------------------------------------------------------------------------------
